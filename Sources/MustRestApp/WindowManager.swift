@@ -45,8 +45,7 @@ class WindowManager: ObservableObject {
         // to complete first. Doing it synchronously left the window without
         // key status, which kept keyboard focus off the text fields.
         let app = NSRunningApplication.current
-        let didActivate = app.activate(options: [.activateAllWindows])
-        NSLog("[WindowManager] activate returned \(didActivate), NSApp.isActive: \(NSApp.isActive), policy: \(NSApp.activationPolicy)")
+        app.activate(options: [.activateAllWindows])
 
         if settingsWindow == nil {
             let window = NSWindow(
@@ -56,7 +55,6 @@ class WindowManager: ObservableObject {
                 defer: false
             )
             window.title = "设置"
-            window.center()
             window.isReleasedWhenClosed = false
             window.level = .normal
             self.settingsWindow = window
@@ -72,7 +70,12 @@ class WindowManager: ObservableObject {
                     .environmentObject(self)
             )
             window.makeKeyAndOrderFront(nil)
-            NSLog("[WindowManager] Settings window isKeyWindow: \(window.isKeyWindow), visible: \(window.isVisible), NSApp.keyWindow: \(NSApp.keyWindow)")
+            // Re-apply the centered frame after ordering front so the final
+            // frame is the centered one.
+            window.setFrameOrigin(NSPoint(
+                x: (NSScreen.main?.frame.midX ?? 0) - 250,
+                y: (NSScreen.main?.frame.midY ?? 0) - 300
+            ))
         }
     }
 
