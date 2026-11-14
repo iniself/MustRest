@@ -29,7 +29,12 @@ struct MustRestApp: App {
                     engine.start(task: firstTask)
                 }
             } label: {
-                Text(engine.phase == .working || engine.phase == .breaking ? "暂停" : "继续")
+                // Button title: "Start" when idle, "Pause" while running, "Resume" when paused.
+                Text(engine.phase == .working || engine.phase == .breaking
+                    ? "暂停"
+                    : engine.phase == .paused
+                        ? "继续"
+                        : "开始")
             }
 
             Button {
