@@ -19,7 +19,11 @@ struct MustRestApp: App {
             isInserted: MustRestApp.menuInsertBinding
         ) {
             Button {
-                if engine.isPaused {
+                // Toggle the running timer: working/breaking -> pause, paused ->
+                // resume, idle -> start the first task.
+                if engine.phase == .working || engine.phase == .breaking {
+                    engine.pause()
+                } else if engine.phase == .paused {
                     engine.resume()
                 } else if let firstTask = store.settings.tasks.first {
                     engine.start(task: firstTask)
