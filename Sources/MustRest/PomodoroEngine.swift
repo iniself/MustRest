@@ -29,6 +29,7 @@ public final class PomodoroEngine: ObservableObject {
 
     public func start(task: Task) {
         self.task = task
+        currentTask = task
         phase = .working
         pausedFrom = nil
         endDate = clock.now().addingTimeInterval(task.workIntervalSeconds)
@@ -72,14 +73,24 @@ public final class PomodoroEngine: ObservableObject {
             remainingSeconds = max(0, endDate?.timeIntervalSinceNow ?? 0)
             notifyChange()
         } else {
-            remainingSeconds = remaining
+            // Only publish when the value actually changed; assigning an
+            // equal value still fires @Published and triggers SwiftUI updates
+            // on every timer tick.
+            if remaining != remainingSeconds {
+                remainingSeconds = remaining
+            }
         }
     }
 
     private func scheduleTimer() {
         invalidateTimer()
-        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+        // Capture the engine strongly: the engine is owned by the app for its
+        // whole lifetime (StateObject), so the repeating timer -> closure ->
+        // engine cycle is not a practical leak here. Avoiding the `[weak self]`
+        // load also removes the swift_weakLoadStrong crash path seen in crash
+        // reports ("Program crashed: Bad pointer dereference" inside the timer
+        // callback).
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [self] _ in
             self.tick(now: Date())
         }
         self.timer = timer

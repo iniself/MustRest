@@ -89,6 +89,11 @@ class WindowManager: ObservableObject {
                 defer: false
             )
             window.title = "Resting"
+            // NSWindow releases itself when closed by default (isReleasedWhenClosed
+            // defaults to YES), which would free the window while we still hold the
+            // reference; the subsequent `overlayWindow = nil` would then release the
+            // already-freed window and crash. Own the release lifecycle ourselves.
+            window.isReleasedWhenClosed = false
             window.level = NSWindow.Level(rawValue: Int(NSScreen.main?.frame.size.height ?? 1080) + 2000)
             self.overlayWindow = window
         }
@@ -98,6 +103,13 @@ class WindowManager: ObservableObject {
                 .environmentObject(store)
             window.contentViewController = NSHostingController(rootView: contentView)
             window.makeKeyAndOrderFront(nil)
+            // The overlay must cover the whole screen; make sure the window has
+            // a concrete frame before making it visible, otherwise it renders as
+            // a zero-sized (invisible) window.
+            let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+            if window.frame.size.width <= 0 || window.frame.size.height <= 0 {
+                window.setFrame(screenFrame, display: true)
+            }
             print("[WindowManager] Overlay displayed")
         }
     }

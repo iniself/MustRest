@@ -8,11 +8,15 @@ struct MustRestApp: App {
     @StateObject private var store = PomodoroStore.shared
     @StateObject private var windowManager = WindowManager()
 
+    /// Stable binding instance: creating a new `Binding` on every body
+    /// evaluation makes SwiftUI build a new menu on each render.
+    private static let menuInsertBinding = Binding<Bool>(get: { true }, set: { _ in })
+
     var body: some Scene {
         MenuBarExtra(
             engine.currentTask?.name ?? "MustRest",
             systemImage: "timer",
-            isInserted: Binding.constant(true)
+            isInserted: MustRestApp.menuInsertBinding
         ) {
             Button {
                 if engine.isPaused {
