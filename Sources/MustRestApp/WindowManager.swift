@@ -8,10 +8,9 @@ class WindowManager: ObservableObject {
     private var phaseObserver: NSObjectProtocol?
 
     init() {
-        // A menu bar only app must run with a regular activation policy,
-        // otherwise NSApplication never enters the active state and windows
-        // can never become key windows.
-        NSApp.setActivationPolicy(.regular)
+        // A menu bar only app must run with an accessory activation policy,
+        // otherwise it shows up in the Dock and the Command + Tab switcher.
+        NSApp.setActivationPolicy(.accessory)
         setupPhaseObserver()
     }
 
