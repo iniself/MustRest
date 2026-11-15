@@ -30,18 +30,24 @@ struct MustRestApp: App {
                 }
             } label: {
                 // Button title: "Start" when idle, "Pause" while running, "Resume" when paused.
-                Text(engine.phase == .working || engine.phase == .breaking
-                    ? "暂停"
-                    : engine.phase == .paused
-                        ? "继续"
-                        : "开始")
+                if engine.phase == .working || engine.phase == .breaking {
+                    Label("暂停", systemImage: "pause.circle")
+                        .labelStyle(.titleAndIcon)
+                } else if engine.phase == .paused {
+                    Label("继续", systemImage: "play.circle")
+                        .labelStyle(.titleAndIcon)
+                } else {
+                    Label("开始", systemImage: "play.circle")
+                        .labelStyle(.titleAndIcon)
+                }
             }
 
             Button {
                 NSLog("[MenuBarExtra] Settings button clicked")
                 windowManager.showSettings(engine: engine, store: store)
             } label: {
-                Text("设置...")
+                Label("设置...", systemImage: "gearshape")
+                    .labelStyle(.titleAndIcon)
             }
 
             Divider()
@@ -49,7 +55,8 @@ struct MustRestApp: App {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Text("退出")
+                Label("退出", systemImage: "power")
+                    .labelStyle(.titleAndIcon)
             }
         }
         .environmentObject(engine)
