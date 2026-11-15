@@ -99,8 +99,11 @@ struct SettingsView: View {
 
     private func addTask() {
         var newSettings = store.settings
-        newSettings.tasks.append(Task(name: "新任务", workIntervalSeconds: 15 * 60, breakDurationSeconds: 15))
+        let newTask = Task(name: "新任务", workIntervalSeconds: 15 * 60, breakDurationSeconds: 15)
+        newSettings.tasks.append(newTask)
         store.saveSettings(newSettings)
+        // The newly added task becomes the one the menu bar toggle runs next.
+        engine.setCurrentTask(newTask)
     }
 
     private func removeTask(_ task: Task) {

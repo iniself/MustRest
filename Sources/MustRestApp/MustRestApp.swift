@@ -25,8 +25,8 @@ struct MustRestApp: App {
                     engine.pause()
                 } else if engine.phase == .paused {
                     engine.resume()
-                } else if let firstTask = store.settings.tasks.first {
-                    engine.start(task: firstTask)
+                } else if let task = engine.currentTask ?? store.settings.tasks.first {
+                    engine.start(task: task)
                 }
             } label: {
                 // Button title: "Start" when idle, "Pause" while running, "Resume" when paused.

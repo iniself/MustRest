@@ -58,6 +58,13 @@ public final class PomodoroEngine: ObservableObject {
         notifyChange()
     }
 
+    /// Sets the task that the toggle action should run next without
+    /// starting the timer. Used when the user adds / edits tasks in settings.
+    public func setCurrentTask(_ task: Task) {
+        self.task = task
+        currentTask = task
+    }
+
     /// Advances the engine by the real elapsed time.
     public func tick(now: Date) {
         guard phase == .working || phase == .breaking else { return }
