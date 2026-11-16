@@ -9,12 +9,16 @@ public struct Task: Identifiable, Codable, Equatable, Hashable {
     public var name: String
     public var workIntervalSeconds: TimeInterval
     public var breakDurationSeconds: TimeInterval
+    /// Overlay background color as a hex string (e.g. "#ffb3a7").
+    /// `nil` means the task uses the default overlay color.
+    public var overlayBackgroundColor: String? = nil
 
     public init(id: UUID = UUID(), name: String, workIntervalSeconds: TimeInterval, breakDurationSeconds: TimeInterval) {
         self.id = id
         self.name = name
         self.workIntervalSeconds = max(1, workIntervalSeconds)
         self.breakDurationSeconds = max(1, breakDurationSeconds)
+        self.overlayBackgroundColor = nil
     }
 
     /// Short eye break: work 15 minutes, then 15 seconds of eye rest.

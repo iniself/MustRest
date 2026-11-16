@@ -166,6 +166,10 @@ struct TaskRowView: View {
                         .textFieldStyle(.roundedBorder)
                 }
             }
+
+            // Overlay background color picker; falls back to the default color.
+            ColorPicker("遮罩背景色", selection: overlayColor)
+                .padding(.top, 4)
         }
         .padding()
         .background(Color(NSColor.windowBackgroundColor).opacity(0.6))
@@ -202,6 +206,40 @@ struct TaskRowView: View {
                 updateTask { $0.breakDurationSeconds = newValue }
             }
         )
+    }
+
+    /// Binding for the task's overlay background color.
+    private var overlayColor: Binding<Color> {
+        Binding(
+            get: { Self.color(fromHex: task.overlayBackgroundColor ?? "#ffb3a7") },
+            set: { newValue in
+                var newSettings = store.settings
+                if let index = newSettings.tasks.firstIndex(where: { $0.id == task.id }) {
+                    var updatedTask = newSettings.tasks[index]
+                    updatedTask.overlayBackgroundColor = Self.hexString(from: newValue)
+                    newSettings.tasks[index] = updatedTask
+                }
+                store.saveSettings(newSettings)
+            }
+        )
+    }
+
+    private static func color(fromHex hex: String) -> Color {
+        let clean = hex.replacingOccurrences(of: "#", with: "")
+        if clean.count != 6 { return Color(red: 1.0, green: 0.698, blue: 0.655) }
+        let value = Int(clean, radix: 16) ?? 0
+        let r = (value >> 16) & 0xff
+        let g = (value >> 8) & 0xff
+        let b = value & 0xff
+        return Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
+    }
+
+    private static func hexString(from color: Color) -> String {
+        guard let components = color.cgColor?.components else { return "#ffb3a7" }
+        let r = Int(components[0] * 255)
+        let g = Int(components[1] * 255)
+        let b = Int(components[2] * 255)
+        return String(format: "#%02x%02x%02x", r, g, b)
     }
 
     private func updateTask(_ mutate: (inout Task) -> Void) {
