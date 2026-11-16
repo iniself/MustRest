@@ -48,17 +48,9 @@ struct SettingsView: View {
 
                     // Section 2: Task Management
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("任务列表")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Button(action: addTask) {
-                                Label("添加", systemImage: "plus.circle.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        }
+                        Text("任务列表")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
 
                         VStack(spacing: 12) {
                             ForEach(store.settings.tasks) { task in
@@ -76,6 +68,18 @@ struct SettingsView: View {
                         .padding(12)
                         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
                         .cornerRadius(12)
+
+                        // "+" button centered below the task list.
+                        HStack {
+                            Spacer()
+                            Button(action: addTask) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                        }
                     }
                 }
                 .padding(.horizontal, 20)

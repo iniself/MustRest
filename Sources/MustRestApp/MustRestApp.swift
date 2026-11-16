@@ -12,10 +12,16 @@ struct MustRestApp: App {
     /// evaluation makes SwiftUI build a new menu on each render.
     private static let menuInsertBinding = Binding<Bool>(get: { true }, set: { _ in })
 
+    /// True while a pomodoro run is actively counting down, i.e. right after
+    /// the user pressed start or resume.
+    private var isTiming: Bool {
+        engine.phase == .working || engine.phase == .breaking
+    }
+
     var body: some Scene {
         MenuBarExtra(
             engine.currentTask?.name ?? "MustRest",
-            systemImage: "timer",
+            systemImage: isTiming ? "hourglass" : "timer",
             isInserted: MustRestApp.menuInsertBinding
         ) {
             Button {
@@ -31,9 +37,10 @@ struct MustRestApp: App {
                     engine.startAll(tasks: store.settings.tasks)
                 }
             } label: {
-                // Button title: "Start" when idle, "Pause" while running, "Resume" when paused.
-                if engine.phase == .working || engine.phase == .breaking {
-                    Label("暂停", systemImage: "pause.circle")
+                // While a pomodoro is counting down (after start / resume) the
+                // icon becomes a timer icon to represent the running state.
+                if isTiming {
+                    Label("暂停", systemImage: "hourglass")
                         .labelStyle(.titleAndIcon)
                 } else if engine.phase == .paused {
                     Label("继续", systemImage: "play.circle")
