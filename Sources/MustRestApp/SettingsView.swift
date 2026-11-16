@@ -34,11 +34,11 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         Form {
-                            Toggle(store.settings.reminderMethod.displayName, isOn: Binding(
-                                get: { store.settings.reminderMethod == .overlay },
+                            Toggle(store.settings.isOverlayBlocking ? "遮罩全屏" : "允许退出", isOn: Binding(
+                                get: { store.settings.isOverlayBlocking },
                                 set: { newValue in
                                     var newSettings = store.settings
-                                    newSettings.reminderMethod = newValue ? .overlay : .banner
+                                    newSettings.isOverlayBlocking = newValue
                                     store.saveSettings(newSettings)
                                 }
                             ))

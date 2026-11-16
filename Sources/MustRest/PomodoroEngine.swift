@@ -178,6 +178,16 @@ public final class PomodoroEngine: ObservableObject {
         remainingSeconds = Self.remainingSeconds(for: run)
     }
 
+    /// Ends the current task run early, e.g. through the overlay exit button
+    /// when early exit is allowed. The next start begins a fresh run.
+    public func endCurrentRun() {
+        guard let taskId = currentTask?.id else { return }
+        runs[taskId] = nil
+        phase = .idle
+        remainingSeconds = 0
+        notifyChange()
+    }
+
     private func scheduleTimer() {
         invalidateTimer()
         // Capture the engine strongly: the engine is owned by the app for its

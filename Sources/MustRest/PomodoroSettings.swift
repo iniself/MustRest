@@ -1,26 +1,15 @@
 import Foundation
 
-public enum ReminderMethod: String, Codable, CaseIterable {
-    case overlay = "overlay"
-    case banner = "banner"
-
-    public var displayName: String {
-        switch self {
-        case .overlay:
-            return "遮罩全屏"
-        case .banner:
-            return "通知提醒"
-        }
-    }
-}
-
 public struct PomodoroSettings: Codable {
+    /// When true the overlay is full screen and the user must wait for the
+    /// timer to finish (early exit is not allowed). When false the user may
+    /// exit the current run early through the overlay exit button.
+    public var isOverlayBlocking: Bool
     public var tasks: [Task]
-    public var reminderMethod: ReminderMethod
 
-    public init(tasks: [Task] = Task.defaultTasks(), reminderMethod: ReminderMethod = .overlay) {
+    public init(tasks: [Task] = Task.defaultTasks(), isOverlayBlocking: Bool = true) {
         self.tasks = tasks
-        self.reminderMethod = reminderMethod
+        self.isOverlayBlocking = isOverlayBlocking
     }
 }
 
@@ -33,12 +22,12 @@ public final class PomodoroStore: ObservableObject {
 
     private enum Keys {
         static let tasks = "mustrest.tasks"
-        static let reminderMethod = "mustrest.reminderMethod"
+        static let isOverlayBlocking = "mustrest.isOverlayBlocking"
     }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        
+
         var tasks: [Task] = Task.defaultTasks()
         if let data = defaults.data(forKey: Keys.tasks),
            let decodedTasks = try? JSONDecoder().decode([Task].self, from: data),
@@ -46,14 +35,17 @@ public final class PomodoroStore: ObservableObject {
             tasks = decodedTasks
         }
 
-        let method: ReminderMethod = defaults.string(forKey: Keys.reminderMethod).flatMap { ReminderMethod(rawValue: $0) } ?? .overlay
-        self.settings = PomodoroSettings(tasks: tasks, reminderMethod: method)
+        // Defaults to blocking (full screen overlay) when the key is missing.
+        let isOverlayBlocking = defaults.object(forKey: Keys.isOverlayBlocking) == nil
+            ? true
+            : defaults.bool(forKey: Keys.isOverlayBlocking)
+        self.settings = PomodoroSettings(tasks: tasks, isOverlayBlocking: isOverlayBlocking)
     }
 
     public func saveSettings(_ newSettings: PomodoroSettings) {
         let data = (try? JSONEncoder().encode(newSettings.tasks)) ?? Data()
         defaults.set(data, forKey: Keys.tasks)
-        defaults.set(newSettings.reminderMethod.rawValue, forKey: Keys.reminderMethod)
+        defaults.set(newSettings.isOverlayBlocking, forKey: Keys.isOverlayBlocking)
         self.settings = newSettings
     }
 }

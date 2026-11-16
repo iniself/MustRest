@@ -30,6 +30,21 @@ struct OverlayView: View {
                     .fontWeight(.black)
                     .foregroundColor(.white)
             }
+
+            // Early exit button, only available when the user allowed quitting
+            // early (switch OFF / "allow exit").
+            if !store.settings.isOverlayBlocking {
+                VStack {
+                    Spacer()
+                    Button("退出") {
+                        engine.endCurrentRun()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.bottom, 40)
+                    .foregroundColor(.white)
+                }
+            }
         }
     }
 
