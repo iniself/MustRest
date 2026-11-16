@@ -74,7 +74,7 @@ struct SettingsView: View {
                             Spacer()
                             Button(action: addTask) {
                                 Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
+                                    .font(.system(size: 44, weight: .medium))
                                     .foregroundColor(.accentColor)
                             }
                             .buttonStyle(.plain)
