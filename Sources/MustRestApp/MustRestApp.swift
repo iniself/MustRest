@@ -20,13 +20,15 @@ struct MustRestApp: App {
         ) {
             Button {
                 // Toggle the running timer: working/breaking -> pause, paused ->
-                // resume, idle -> start the first task.
+                // resume, idle -> start all tasks in parallel.
                 if engine.phase == .working || engine.phase == .breaking {
                     engine.pause()
                 } else if engine.phase == .paused {
                     engine.resume()
-                } else if let task = engine.currentTask ?? store.settings.tasks.first {
-                    engine.start(task: task)
+                } else {
+                    // Start a fresh pomodoro run for every task so all of them
+                    // count down in parallel from now.
+                    engine.startAll(tasks: store.settings.tasks)
                 }
             } label: {
                 // Button title: "Start" when idle, "Pause" while running, "Resume" when paused.

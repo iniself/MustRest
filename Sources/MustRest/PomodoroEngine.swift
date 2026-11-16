@@ -9,7 +9,7 @@ public final class PomodoroEngine: ObservableObject {
     }
 
     /// A single pomodoro run belonging to one task. Each task owns one run,
-    /// so several tasks can be resting / working at the same time.
+    /// so several tasks can rest / work at the same time.
     public struct TaskRun: Equatable {
         public let task: Task
         public var phase: Phase = .idle
@@ -26,7 +26,7 @@ public final class PomodoroEngine: ObservableObject {
     /// independently of each other.
     public private(set) var runs: [UUID: TaskRun] = [:]
 
-    /// The task whose run the menu bar toggle is currently controlling.
+    /// The task whose run the overlay / toggle currently cares about.
     @Published public private(set) var phase: Phase = .idle
     @Published public private(set) var currentTask: Task?
     @Published public private(set) var remainingSeconds: TimeInterval = 0
@@ -42,13 +42,12 @@ public final class PomodoroEngine: ObservableObject {
         phase == .paused
     }
 
-    /// Runs a task: starts a fresh pomodoro run (work -> break cycle) for it.
+    /// Runs a fresh pomodoro run (work -> break cycle) for the given task.
     public func start(task: Task) {
         var run = TaskRun(task: task)
         run.phase = .working
         run.endDate = clock.now().addingTimeInterval(task.workIntervalSeconds)
         run.remainingAtPause = task.workIntervalSeconds
-
         runs[task.id] = run
         currentTask = task
         phase = .working
@@ -57,32 +56,60 @@ public final class PomodoroEngine: ObservableObject {
         notifyChange()
     }
 
-    /// Pauses the run of the task controlled by the menu bar toggle.
+    /// Runs a fresh pomodoro run for every task so all of them count down
+    /// in parallel from now.
+    public func startAll(tasks: [Task]) {
+        guard !tasks.isEmpty else { return }
+        for task in tasks {
+            var run = TaskRun(task: task)
+            run.phase = .working
+            run.endDate = clock.now().addingTimeInterval(task.workIntervalSeconds)
+            run.remainingAtPause = task.workIntervalSeconds
+            runs[task.id] = run
+        }
+        currentTask = tasks[0]
+        phase = .working
+        remainingSeconds = tasks[0].workIntervalSeconds
+        scheduleTimer()
+        notifyChange()
+    }
+
+    /// Pauses every running task run so parallel rests stay in sync.
     public func pause() {
         guard phase == .working || phase == .breaking else { return }
-        guard let taskId = currentTask?.id, var run = runs[taskId] else { return }
-        let fromPhase = run.phase
-        run.phase = .paused
-        run.pausedFrom = fromPhase
-        run.endDate = nil
-        run.remainingAtPause = max(0, remainingSeconds)
-        runs[taskId] = run
+        for (id, run) in runs {
+            guard run.phase == .working || run.phase == .breaking else { continue }
+            var updatedRun = run
+            updatedRun.phase = .paused
+            updatedRun.pausedFrom = run.phase
+            updatedRun.endDate = nil
+            updatedRun.remainingAtPause = max(0, run.endDate?.timeIntervalSinceNow ?? 0)
+            runs[id] = updatedRun
+        }
+        guard let taskId = currentTask?.id, runs[taskId]?.phase == .paused else { return }
         phase = .paused
-        remainingSeconds = run.remainingAtPause
+        remainingSeconds = max(0, runs[taskId]?.remainingAtPause ?? 0)
         invalidateTimer()
         notifyChange()
     }
 
-    /// Resumes the run of the task controlled by the menu bar toggle.
+    /// Resumes every paused task run.
     public func resume() {
-        guard phase == .paused, let taskId = currentTask?.id, var run = runs[taskId], let pausedPhase = run.pausedFrom else { return }
-        run.phase = pausedPhase
-        run.pausedFrom = nil
-        run.endDate = clock.now().addingTimeInterval(run.remainingAtPause)
-        runs[taskId] = run
-        phase = pausedPhase
+        guard phase == .paused else { return }
+        var didResume = false
+        for (id, run) in runs where run.phase == .paused {
+            guard let pausedPhase = run.pausedFrom else { continue }
+            var updatedRun = run
+            updatedRun.phase = pausedPhase
+            updatedRun.pausedFrom = nil
+            updatedRun.endDate = clock.now().addingTimeInterval(updatedRun.remainingAtPause)
+            runs[id] = updatedRun
+            didResume = true
+        }
+        guard didResume, let taskId = currentTask?.id, let run = runs[taskId] else { return }
+        phase = run.phase == .paused ? .working : run.phase
         remainingSeconds = max(0, run.endDate?.timeIntervalSinceNow ?? 0)
-        scheduleTimer();
+        scheduleTimer()
         notifyChange()
     }
 
@@ -100,11 +127,12 @@ public final class PomodoroEngine: ObservableObject {
             run.phase = .breaking
             run.endDate = now.addingTimeInterval(task.breakDurationSeconds)
             runs[id] = run
-            if currentTask?.id == id {
-                phase = .breaking
-                remainingSeconds = task.breakDurationSeconds
-                didChangePhase = true
-            }
+            // The task that just entered its break becomes the featured task
+            // so the overlay shows that task's countdown.
+            currentTask = task
+            phase = .breaking
+            remainingSeconds = task.breakDurationSeconds
+            didChangePhase = true
         }
 
         // Break -> work transitions for all resting tasks.
@@ -118,10 +146,21 @@ public final class PomodoroEngine: ObservableObject {
             run.endDate = now.addingTimeInterval(task.workIntervalSeconds)
             run.remainingAtPause = task.workIntervalSeconds
             runs[id] = run
-            if currentTask?.id == id {
-                phase = .working
-                remainingSeconds = task.workIntervalSeconds
-                didChangePhase = true
+            currentTask = task
+            phase = .working
+            remainingSeconds = task.workIntervalSeconds
+            didChangePhase = true
+        }
+
+        // Keep the featured run's countdown in sync while it is working or in
+        // its break, so the overlay animates every second.
+        if phase == .working || phase == .breaking,
+           let taskId = currentTask?.id,
+           let run = runs[taskId],
+           run.phase == phase {
+            let remaining = max(0, run.endDate?.timeIntervalSinceNow ?? 0)
+            if remaining != remainingSeconds {
+                remainingSeconds = remaining
             }
         }
 
@@ -130,7 +169,8 @@ public final class PomodoroEngine: ObservableObject {
         }
     }
 
-    /// Sets the task that the toggle action should control next.
+    /// Sets the task that the toggle action should control next without
+    /// starting the timer. Used when the user adds / edits tasks in settings.
     public func setCurrentTask(_ task: Task) {
         currentTask = task
         guard let run = runs[task.id] else { return }
