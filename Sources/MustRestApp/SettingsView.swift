@@ -89,9 +89,15 @@ struct SettingsView: View {
             Divider()
             HStack {
                 Spacer()
-                Button("保存并关闭") {
+                Button(action: {
                     store.saveSettings(store.settings)
                     windowManager.closeSettings()
+                }) {
+                    // Add internal padding so the button grows without
+                    // changing the label text size.
+                    Text("保存并关闭")
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
