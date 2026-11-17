@@ -7,6 +7,8 @@ class WindowManager: ObservableObject {
     private var overlayWindow: NSWindow?
     private var phaseObserver: NSObjectProtocol?
     private var colorPanelObserver: NSObjectProtocol?
+    private var colorPanelTimer: Timer?
+    private var lastColorPanelVisible = false
 
     init() {
         // A menu bar only app must run with an accessory activation policy,
@@ -32,24 +34,42 @@ class WindowManager: ObservableObject {
     }
 
     private func setupColorPanelObserver() {
-        // SwiftUI ColorPicker opens the shared NSColorPanel when the user picks
-        // a color; watch it becoming visible so we can place it next to the
-        // settings window instead of letting the system choose a position.
+        // SwiftUI ColorPicker opens a color panel when the user picks a color;
+        // watch it becoming visible so we can place it next to the settings
+        // window instead of letting the system choose a position. Observing
+        // without an object filter keeps this working regardless of which
+        // NSColorPanel instance SwiftUI happens to present.
         colorPanelObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("NSWindowDidBecomeVisibleNotification"),
-            object: NSColorPanel.shared,
+            forName: NSNotification.Name("NSWindowDidBecomeVisible"),
+            object: nil,
             queue: .main
-        ) { [weak self] _ in
-            self?.positionColorPanel()
+        ) { [weak self] notification in
+            self?.positionColorPanel(notification: notification)
+        }
+
+        // Fallback: poll the shared color panel visibility transitions.
+        colorPanelTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            self?.checkColorPanelVisibility()
         }
     }
 
-    /// Positions the shared color panel so its left edge is flush with the
-    /// right edge of the settings window and its top aligns with the top of
-    /// the settings window.
-    private func positionColorPanel() {
+    private func checkColorPanelVisibility() {
+        let visible = NSColorPanel.shared.isVisible
+        if visible && !lastColorPanelVisible {
+            print("[ColorPanel] panel became visible, positioning")
+            positionColorPanel()
+        }
+        lastColorPanelVisible = visible
+    }
+
+    /// Positions the color panel so its left edge is flush with the right
+    /// edge of the settings window and its top aligns with the top of the
+    /// settings window. Called whenever the panel becomes visible so the
+    /// panel always opens at the desired spot instead of keeping whatever
+    /// frame it had from a previous (possibly manual) position.
+    private func positionColorPanel(notification: Notification? = nil) {
+        let panel = notification?.object as? NSColorPanel ?? NSColorPanel.shared
         guard let settingsWindow = settingsWindow, settingsWindow.isVisible else { return }
-        let panel = NSColorPanel.shared
         let size = panel.frame.size
         var origin = NSPoint(x: settingsWindow.frame.maxX, y: settingsWindow.frame.maxY - size.height)
         if let screen = NSScreen.screens.first(where: { $0.frame.intersects(settingsWindow.frame) }) {
@@ -58,6 +78,7 @@ class WindowManager: ObservableObject {
             if origin.y < screen.frame.minY { origin.y = screen.frame.minY }
         }
         panel.setFrameOrigin(origin)
+        panel.orderFront(nil)
     }
 
     deinit {
@@ -67,6 +88,7 @@ class WindowManager: ObservableObject {
         if let observer = colorPanelObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        colorPanelTimer?.invalidate()
     }
 
     func showSettings(engine: PomodoroEngine, store: PomodoroStore) {
