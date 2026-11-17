@@ -52,7 +52,6 @@ struct MustRestApp: App {
             }
 
             Button {
-                NSLog("[MenuBarExtra] Settings button clicked")
                 windowManager.showSettings(engine: engine, store: store)
             } label: {
                 Label("设置...", systemImage: "gearshape")

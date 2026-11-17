@@ -69,7 +69,6 @@ class WindowManager: ObservableObject {
     private func checkColorPanelVisibility() {
         let visible = NSColorPanel.shared.isVisible
         if visible && !lastColorPanelVisible {
-            print("[ColorPanel] panel became visible, positioning")
             positionColorPanel()
         }
         lastColorPanelVisible = visible
@@ -108,9 +107,6 @@ class WindowManager: ObservableObject {
     }
 
     func showSettings(engine: PomodoroEngine, store: PomodoroStore) {
-        NSLog("[WindowManager] showSettings called")
-        NSLog("[WindowManager] Current app: \(NSRunningApplication.current.localizedName ?? "Unknown")")
-
         // Activate the app to steal focus from terminal, then make the window
         // key on the next main run loop iteration so activation has a chance
         // to complete first. Doing it synchronously left the window without
@@ -151,7 +147,6 @@ class WindowManager: ObservableObject {
     }
 
     func showOverlay(engine: PomodoroEngine, store: PomodoroStore) {
-        print("[WindowManager] Show Overlay requested")
         if overlayWindow == nil {
             let window = NSWindow(
                 contentRect: NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080),
@@ -181,12 +176,10 @@ class WindowManager: ObservableObject {
             if window.frame.size.width <= 0 || window.frame.size.height <= 0 {
                 window.setFrame(screenFrame, display: true)
             }
-            print("[WindowManager] Overlay displayed")
         }
     }
 
     func hideOverlay() {
-        print("[WindowManager] Hiding overlay...")
         overlayWindow?.close()
         overlayWindow = nil
     }
