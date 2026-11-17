@@ -6,12 +6,14 @@ class WindowManager: ObservableObject {
     private var settingsWindow: NSWindow?
     private var overlayWindow: NSWindow?
     private var phaseObserver: NSObjectProtocol?
+    private var colorPanelObserver: NSObjectProtocol?
 
     init() {
         // A menu bar only app must run with an accessory activation policy,
         // otherwise it shows up in the Dock and the Command + Tab switcher.
         NSApp.setActivationPolicy(.accessory)
         setupPhaseObserver()
+        setupColorPanelObserver()
     }
 
     private func setupPhaseObserver() {
@@ -29,8 +31,40 @@ class WindowManager: ObservableObject {
         }
     }
 
+    private func setupColorPanelObserver() {
+        // SwiftUI ColorPicker opens the shared NSColorPanel when the user picks
+        // a color; watch it becoming visible so we can place it next to the
+        // settings window instead of letting the system choose a position.
+        colorPanelObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("NSWindowDidBecomeVisibleNotification"),
+            object: NSColorPanel.shared,
+            queue: .main
+        ) { [weak self] _ in
+            self?.positionColorPanel()
+        }
+    }
+
+    /// Positions the shared color panel so its left edge is flush with the
+    /// right edge of the settings window and its top aligns with the top of
+    /// the settings window.
+    private func positionColorPanel() {
+        guard let settingsWindow = settingsWindow, settingsWindow.isVisible else { return }
+        let panel = NSColorPanel.shared
+        let size = panel.frame.size
+        var origin = NSPoint(x: settingsWindow.frame.maxX, y: settingsWindow.frame.maxY - size.height)
+        if let screen = NSScreen.screens.first(where: { $0.frame.intersects(settingsWindow.frame) }) {
+            let maxX = screen.frame.maxX - size.width
+            if origin.x > maxX { origin.x = max(0, maxX) }
+            if origin.y < screen.frame.minY { origin.y = screen.frame.minY }
+        }
+        panel.setFrameOrigin(origin)
+    }
+
     deinit {
         if let observer = phaseObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = colorPanelObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
