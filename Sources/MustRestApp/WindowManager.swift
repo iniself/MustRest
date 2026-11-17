@@ -9,6 +9,7 @@ class WindowManager: ObservableObject {
     private var colorPanelObserver: NSObjectProtocol?
     private var colorPanelTimer: Timer?
     private var lastColorPanelVisible = false
+    private var keyMonitor: Any?
 
     init() {
         // A menu bar only app must run with an accessory activation policy,
@@ -16,6 +17,18 @@ class WindowManager: ObservableObject {
         NSApp.setActivationPolicy(.accessory)
         setupPhaseObserver()
         setupColorPanelObserver()
+        setupKeyMonitor()
+    }
+
+    private func setupKeyMonitor() {
+        // Allow the Escape key to close the settings window.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 {
+                self?.closeSettings()
+                return nil
+            }
+            return event
+        }
     }
 
     private func setupPhaseObserver() {
@@ -89,6 +102,9 @@ class WindowManager: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         colorPanelTimer?.invalidate()
+        if let keyMonitor = keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+        }
     }
 
     func showSettings(engine: PomodoroEngine, store: PomodoroStore) {
