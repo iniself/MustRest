@@ -21,6 +21,16 @@ struct SettingsView: View {
             HStack {
                 Text("设置")
                     .font(.system(size: 24, weight: .bold))
+
+                // Reset button placed next to the title.
+                Button(action: { showingResetAlert = true }) {
+                    Label("恢复默认任务", systemImage: "arrow.counterclockwise")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.bordered)
+                .padding(.leading, 12)
+
                 Spacer()
                 Button {
                     windowManager.closeSettings()
@@ -93,18 +103,6 @@ struct SettingsView: View {
                             Spacer()
                         }
 
-                        // Reset button below the task list: restores the
-                        // default task set after the confirmation alert.
-                        HStack {
-                            Spacer()
-                            Button(action: { showingResetAlert = true }) {
-                                Label("恢复默认任务", systemImage: "arrow.counterclockwise")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.bordered)
-                            Spacer()
-                        }
                     }
                 }
                 .padding(.horizontal, 20)
