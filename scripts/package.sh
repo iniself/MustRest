@@ -10,8 +10,8 @@ OUT_DIR="dist"
 
 swift build -c release
 
-APP_DIR="${OUT_DIR}/${BUNDLE_NAME}.app"
-rm -rf "${APP_DIR}"
+STAGE="$(mktemp -d)"
+APP_DIR="${STAGE}/${BUNDLE_NAME}.app"
 mkdir -p "${APP_DIR}/Contents/MacOS"
 mkdir -p "${APP_DIR}/Contents/Resources"
 cp ".build/release/${APP_NAME}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
@@ -49,10 +49,9 @@ EOF
 chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}"
 codesign --sign - --force "${APP_DIR}"
 
-STAGE="$(mktemp -d)"
-cp -R "${APP_DIR}" "${STAGE}/"
 ln -s /Applications "${STAGE}/Applications"
 rm -f "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}.dmg"
+rm -rf "${OUT_DIR}/${BUNDLE_NAME}.app" "${OUT_DIR}/.DS_Store"
 hdiutil create -volname "${BUNDLE_NAME}" -srcfolder "${STAGE}" -format UDZO -o "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}.dmg"
 rm -rf "${STAGE}"
 
