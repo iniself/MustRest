@@ -21,14 +21,14 @@ public struct Task: Identifiable, Codable, Equatable, Hashable {
         self.overlayBackgroundColor = nil
     }
 
-    /// Short eye break: work 15 minutes, then 15 seconds of eye rest.
-    public static let eyeRest = Task(name: "休息眼睛", workIntervalSeconds: 15 * 60, breakDurationSeconds: 15)
+    /// Short eye break: work 20 minutes, then 15 seconds of rest.
+    public static let eyeRest = Task(name: "休息眼睛", workIntervalSeconds: 20 * 60, breakDurationSeconds: 15)
 
     /// Standing break: work 1 hour, then 5 minutes of standing.
-    public static let standing = Task(name: "站立运动", workIntervalSeconds: 60 * 60, breakDurationSeconds: 5 * 60)
+    public static let standing = Task(name: "起身走走", workIntervalSeconds: 60 * 60, breakDurationSeconds: 5 * 60)
 
     /// Long standing break: work 2 hours, then 10 minutes of standing.
-    public static let longStanding = Task(name: "长时站立", workIntervalSeconds: 120 * 60, breakDurationSeconds: 10 * 60)
+    public static let longStanding = Task(name: "锻炼身体", workIntervalSeconds: 120 * 60, breakDurationSeconds: 10 * 60)
 
     /// The default set of tasks shipped with the app.
     public static func defaultTasks() -> [Task] {
