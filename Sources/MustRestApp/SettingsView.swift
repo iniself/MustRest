@@ -7,6 +7,13 @@ struct SettingsView: View {
     @EnvironmentObject var store: PomodoroStore
     @EnvironmentObject var windowManager: WindowManager
 
+    /// Local drafts for the settings UI. Edits only mutate these drafts;
+    /// the values are written to the store (and thus persisted) when the user
+    /// explicitly taps "保存并关闭". Closing the window via Esc / close button
+    /// discards the drafts, keeping the previously saved settings untouched.
+    @State private var draftTasks: [Task] = Task.defaultTasks()
+    @State private var draftIsOverlayBlocking: Bool = true
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -34,13 +41,9 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         Form {
-                            Toggle(store.settings.isOverlayBlocking ? "遮罩全屏" : "允许退出", isOn: Binding(
-                                get: { store.settings.isOverlayBlocking },
-                                set: { newValue in
-                                    var newSettings = store.settings
-                                    newSettings.isOverlayBlocking = newValue
-                                    store.saveSettings(newSettings)
-                                }
+                            Toggle(draftIsOverlayBlocking ? "遮罩全屏" : "允许退出", isOn: Binding(
+                                get: { draftIsOverlayBlocking },
+                                set: { draftIsOverlayBlocking = $0 }
                             ))
                         }
                         .formStyle(.grouped)
@@ -53,11 +56,19 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         VStack(spacing: 12) {
-                            ForEach(store.settings.tasks) { task in
-                                TaskRowView(task: task)
+                            ForEach(draftTasks) { task in
+                                TaskRowView(
+                                    task: task,
+                                    onTaskChange: { updatedTask in
+                                        updateDraftTask(updatedTask)
+                                    },
+                                    onRemove: {
+                                        removeDraftTask(task)
+                                    }
+                                )
                             }
 
-                            if store.settings.tasks.isEmpty {
+                            if draftTasks.isEmpty {
                                 Text("暂无任务")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
@@ -90,7 +101,7 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button(action: {
-                    store.saveSettings(store.settings)
+                    saveDraft()
                     windowManager.closeSettings()
                 }) {
                     // Add internal padding so the button grows without
@@ -105,27 +116,43 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 500, height: 550)
+        .onAppear {
+            // Seed the drafts from the last saved settings whenever the window
+            // is presented, so discarded edits never leak into the next session.
+            draftTasks = store.settings.tasks
+            draftIsOverlayBlocking = store.settings.isOverlayBlocking
+        }
+    }
+
+    /// Commits the local drafts into the persisted store.
+    private func saveDraft() {
+        var newSettings = store.settings
+        newSettings.tasks = draftTasks
+        newSettings.isOverlayBlocking = draftIsOverlayBlocking
+        store.saveSettings(newSettings)
     }
 
     private func addTask() {
-        var newSettings = store.settings
         let newTask = Task(name: "新任务", workIntervalSeconds: 15 * 60, breakDurationSeconds: 15)
-        newSettings.tasks.append(newTask)
-        store.saveSettings(newSettings)
+        draftTasks.append(newTask)
         // The newly added task becomes the one the menu bar toggle runs next.
         engine.setCurrentTask(newTask)
     }
 
-    private func removeTask(_ task: Task) {
-        var newSettings = store.settings
-        newSettings.tasks.removeAll { $0.id == task.id }
-        store.saveSettings(newSettings)
+    private func removeDraftTask(_ task: Task) {
+        draftTasks.removeAll { $0.id == task.id }
+    }
+
+    private func updateDraftTask(_ task: Task) {
+        guard let index = draftTasks.firstIndex(where: { $0.id == task.id }) else { return }
+        draftTasks[index] = task
     }
 }
 
 struct TaskRowView: View {
-    @EnvironmentObject var store: PomodoroStore
     let task: Task
+    var onTaskChange: (Task) -> Void
+    var onRemove: () -> Void
 
     // Local draft state backing the text fields so that every keystroke is
     // reflected immediately and the field keeps its first responder status.
@@ -133,8 +160,10 @@ struct TaskRowView: View {
     @State private var workMinutes: Double
     @State private var breakSeconds: Double
 
-    init(task: Task) {
+    init(task: Task, onTaskChange: @escaping (Task) -> Void, onRemove: @escaping () -> Void) {
         self.task = task
+        self.onTaskChange = onTaskChange
+        self.onRemove = onRemove
         _nameText = State(initialValue: task.name)
         _workMinutes = State(initialValue: task.workIntervalSeconds / 60)
         _breakSeconds = State(initialValue: task.breakDurationSeconds)
@@ -152,7 +181,7 @@ struct TaskRowView: View {
 
                 Spacer()
 
-                Button(action: { removeTask(task) }) {
+                Button(action: onRemove) {
                     Image(systemName: "trash")
                         .foregroundColor(.red)
                 }
@@ -183,13 +212,16 @@ struct TaskRowView: View {
     }
 
     // Text fields read from / write to local draft state, then propagate the
-    // change into the task held by the store.
+    // change up to the settings view's drafts. The store is only touched when
+    // the user explicitly saves.
     private var nameBinding: Binding<String> {
         Binding(
             get: { nameText },
             set: { newValue in
                 nameText = newValue
-                updateTask { $0.name = newValue }
+                var updatedTask = task
+                updatedTask.name = newValue
+                onTaskChange(updatedTask)
             }
         )
     }
@@ -199,7 +231,9 @@ struct TaskRowView: View {
             get: { workMinutes },
             set: { newValue in
                 workMinutes = newValue
-                updateTask { $0.workIntervalSeconds = newValue * 60 }
+                var updatedTask = task
+                updatedTask.workIntervalSeconds = newValue * 60
+                onTaskChange(updatedTask)
             }
         )
     }
@@ -209,7 +243,9 @@ struct TaskRowView: View {
             get: { breakSeconds },
             set: { newValue in
                 breakSeconds = newValue
-                updateTask { $0.breakDurationSeconds = newValue }
+                var updatedTask = task
+                updatedTask.breakDurationSeconds = newValue
+                onTaskChange(updatedTask)
             }
         )
     }
@@ -219,13 +255,9 @@ struct TaskRowView: View {
         Binding(
             get: { Self.color(fromHex: task.overlayBackgroundColor ?? "#ffb3a7") },
             set: { newValue in
-                var newSettings = store.settings
-                if let index = newSettings.tasks.firstIndex(where: { $0.id == task.id }) {
-                    var updatedTask = newSettings.tasks[index]
-                    updatedTask.overlayBackgroundColor = Self.hexString(from: newValue)
-                    newSettings.tasks[index] = updatedTask
-                }
-                store.saveSettings(newSettings)
+                var updatedTask = task
+                updatedTask.overlayBackgroundColor = Self.hexString(from: newValue)
+                onTaskChange(updatedTask)
             }
         )
     }
@@ -246,20 +278,5 @@ struct TaskRowView: View {
         let g = Int(components[1] * 255)
         let b = Int(components[2] * 255)
         return String(format: "#%02x%02x%02x", r, g, b)
-    }
-
-    private func updateTask(_ mutate: (inout Task) -> Void) {
-        guard let index = store.settings.tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        var newSettings = store.settings
-        var updatedTask = newSettings.tasks[index]
-        mutate(&updatedTask)
-        newSettings.tasks[index] = updatedTask
-        store.saveSettings(newSettings)
-    }
-
-    private func removeTask(_ task: Task) {
-        var newSettings = store.settings
-        newSettings.tasks.removeAll { $0.id == task.id }
-        store.saveSettings(newSettings)
     }
 }
