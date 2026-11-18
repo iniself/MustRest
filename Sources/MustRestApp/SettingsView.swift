@@ -13,6 +13,7 @@ struct SettingsView: View {
     /// discards the drafts, keeping the previously saved settings untouched.
     @State private var draftTasks: [Task] = Task.defaultTasks()
     @State private var draftIsOverlayBlocking: Bool = true
+    @State private var showingResetAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -91,6 +92,19 @@ struct SettingsView: View {
                             .buttonStyle(.plain)
                             Spacer()
                         }
+
+                        // Reset button below the task list: restores the
+                        // default task set after the confirmation alert.
+                        HStack {
+                            Spacer()
+                            Button(action: { showingResetAlert = true }) {
+                                Label("恢复默认任务", systemImage: "arrow.counterclockwise")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.bordered)
+                            Spacer()
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -116,6 +130,14 @@ struct SettingsView: View {
             .padding()
         }
         .frame(width: 500, height: 550)
+        .alert("恢复默认任务", isPresented: $showingResetAlert) {
+            Button("取消", systemImage: "xmark.circle.fill", role: .cancel) {}
+            Button("恢复默认", systemImage: "arrow.counterclockwise", role: .destructive) {
+                resetToDefaultTasks()
+            }
+        } message: {
+            Text("这会清空并删除你所有的自定义任务，并恢复为默认的三个任务，此操作无法撤销。")
+        }
         .onAppear {
             // Seed the drafts from the last saved settings whenever the window
             // is presented, so discarded edits never leak into the next session.
@@ -146,6 +168,18 @@ struct SettingsView: View {
     private func updateDraftTask(_ task: Task) {
         guard let index = draftTasks.firstIndex(where: { $0.id == task.id }) else { return }
         draftTasks[index] = task
+    }
+
+    /// Restores the default task set and persists it. Called from the
+    /// destructive action of the reset confirmation alert.
+    private func resetToDefaultTasks() {
+        var newSettings = store.settings
+        newSettings.tasks = Task.defaultTasks()
+        store.saveSettings(newSettings)
+        // Reflect the reset immediately in the open window drafts.
+        draftTasks = Task.defaultTasks()
+        // Point the engine back at the first default task after the reset.
+        engine.setCurrentTask(Task.defaultTasks()[0])
     }
 }
 
