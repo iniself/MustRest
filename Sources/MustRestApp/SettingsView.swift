@@ -129,8 +129,8 @@ struct SettingsView: View {
         }
         .frame(width: 500, height: 550)
         .alert("恢复默认任务", isPresented: $showingResetAlert) {
-            Button("取消", systemImage: "xmark.circle.fill", role: .cancel) {}
-            Button("恢复默认", systemImage: "arrow.counterclockwise", role: .destructive) {
+            Button("取消", role: .cancel) {}
+            Button("恢复默认", role: .destructive) {
                 resetToDefaultTasks()
             }
         } message: {
