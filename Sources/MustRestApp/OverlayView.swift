@@ -69,8 +69,15 @@ struct OverlayView: View {
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        let sec = Int(seconds) % 60
+        let totalSeconds = Int(seconds.rounded())
+        // Counts under a minute are shown as plain seconds (e.g. a 15s eye
+        // break); longer counts are shown as minutes:seconds (e.g. a 10min
+        // standing break) with the countdown still ticking.
+        if totalSeconds < 60 {
+            return "\(totalSeconds)"
+        }
+        let minutes = totalSeconds / 60
+        let sec = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, sec)
     }
 }
