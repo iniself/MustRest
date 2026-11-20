@@ -299,7 +299,7 @@ struct TaskRowView: View {
     /// Binding for the task's overlay background color.
     private var overlayColor: Binding<Color> {
         Binding(
-            get: { Self.color(fromHex: task.overlayBackgroundColor ?? "#ffb3a7") },
+            get: { Self.color(fromHex: task.overlayBackgroundColor ?? "#B98278") },
             set: { newValue in
                 var updatedTask = task
                 updatedTask.overlayBackgroundColor = Self.hexString(from: newValue)
@@ -310,7 +310,7 @@ struct TaskRowView: View {
 
     private static func color(fromHex hex: String) -> Color {
         let clean = hex.replacingOccurrences(of: "#", with: "")
-        if clean.count != 6 { return Color(red: 1.0, green: 0.698, blue: 0.655) }
+        if clean.count != 6 { return Self.color(fromHex: "#B98278") }
         let value = Int(clean, radix: 16) ?? 0
         let r = (value >> 16) & 0xff
         let g = (value >> 8) & 0xff
@@ -319,7 +319,7 @@ struct TaskRowView: View {
     }
 
     private static func hexString(from color: Color) -> String {
-        guard let components = color.cgColor?.components else { return "#ffb3a7" }
+        guard let components = color.cgColor?.components else { return "#B98278" }
         let r = Int(components[0] * 255)
         let g = Int(components[1] * 255)
         let b = Int(components[2] * 255)

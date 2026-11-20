@@ -9,7 +9,7 @@ public struct Task: Identifiable, Codable, Equatable, Hashable {
     public var name: String
     public var workIntervalSeconds: TimeInterval
     public var breakDurationSeconds: TimeInterval
-    /// Overlay background color as a hex string (e.g. "#ffb3a7").
+    /// Overlay background color as a hex string (e.g. "#B98278").
     /// `nil` means the task uses the default overlay color.
     public var overlayBackgroundColor: String? = nil
 

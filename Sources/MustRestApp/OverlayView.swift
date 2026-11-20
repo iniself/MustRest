@@ -55,12 +55,12 @@ struct OverlayView: View {
         if let hex = engine.currentTask?.overlayBackgroundColor, !hex.isEmpty {
             return Self.color(fromHex: hex)
         }
-        return Self.color(fromHex: "#ffb3a7")
+        return Self.color(fromHex: "#B98278")
     }
 
     private static func color(fromHex hex: String) -> Color {
         let clean = hex.replacingOccurrences(of: "#", with: "")
-        if clean.count != 6 { return Color(red: 1.0, green: 0.698, blue: 0.655) }
+        if clean.count != 6 { return Self.color(fromHex: "#B98278") }
         let value = Int(clean, radix: 16) ?? 0
         let r = (value >> 16) & 0xff
         let g = (value >> 8) & 0xff
