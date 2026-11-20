@@ -171,13 +171,27 @@ struct SettingsView: View {
     /// Restores the default task set and persists it. Called from the
     /// destructive action of the reset confirmation alert.
     private func resetToDefaultTasks() {
+        // Restore the default task set. Fresh task instances (new identities)
+        // are used so the settings rows are recreated and their local @State
+        // re-seeds from the default values instead of keeping stale edits.
+        let defaults = Task.defaultTasks().map { task in
+            Task(
+                id: UUID(),
+                name: task.name,
+                workIntervalSeconds: task.workIntervalSeconds,
+                breakDurationSeconds: task.breakDurationSeconds
+            )
+        }
+
         var newSettings = store.settings
-        newSettings.tasks = Task.defaultTasks()
+        newSettings.tasks = defaults
         store.saveSettings(newSettings)
+
         // Reflect the reset immediately in the open window drafts.
-        draftTasks = Task.defaultTasks()
+        draftTasks = defaults
         // Point the engine back at the first default task after the reset.
-        engine.setCurrentTask(Task.defaultTasks()[0])
+        engine.reset()
+        engine.setCurrentTask(defaults[0])
     }
 }
 

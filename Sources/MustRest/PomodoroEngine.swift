@@ -169,6 +169,17 @@ public final class PomodoroEngine: ObservableObject {
         }
     }
 
+    /// Clears every task run and returns the engine to the idle state.
+    /// Called when the task set is replaced, e.g. via the settings reset.
+    public func reset() {
+        runs = [:]
+        phase = .idle
+        remainingSeconds = 0
+        currentTask = nil
+        invalidateTimer()
+        notifyChange()
+    }
+
     /// Sets the task that the toggle action should control next without
     /// starting the timer. Used when the user adds / edits tasks in settings.
     public func setCurrentTask(_ task: Task) {
