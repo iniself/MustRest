@@ -185,6 +185,10 @@ class WindowManager: ObservableObject {
     }
 
     func closeSettings() {
+        // SwiftUI's ColorPicker presents via NSColorPanel, which lives outside
+        // the SwiftUI view hierarchy. Close it explicitly so an open picker
+        // does not linger next to a settings window that is already closing.
+        NSColorPanel.shared.close()
         settingsWindow?.close()
         settingsWindow = nil
     }
