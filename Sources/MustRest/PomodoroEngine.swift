@@ -164,6 +164,27 @@ public final class PomodoroEngine: ObservableObject {
             }
         }
 
+        // With parallel tasks more than one break can be pending at the same
+        // time. A newly started break may take over the overlay, but once such
+        // a break ends the overlay has to fall back to the break that is still
+        // running instead of simply disappearing.
+        if phase == .working || phase == .breaking {
+            let pendingBreaks = runs.values
+                .filter { run in
+                    run.phase == .breaking && (run.endDate?.timeIntervalSinceNow ?? 0) > 0
+                }
+                .sorted { lhs, rhs in
+                    (lhs.endDate?.timeIntervalSinceNow ?? 0) < (rhs.endDate?.timeIntervalSinceNow ?? 0)
+                }
+            if let pendingBreak = pendingBreaks.first,
+               currentTask?.id != pendingBreak.task.id || phase != .breaking {
+                currentTask = pendingBreak.task
+                phase = .breaking
+                remainingSeconds = max(0, pendingBreak.endDate?.timeIntervalSinceNow ?? 0)
+                notifyChange()
+            }
+        }
+
         if didChangePhase {
             notifyChange()
         }
