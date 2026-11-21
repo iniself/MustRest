@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 public final class PomodoroEngine: ObservableObject {
     public enum Phase: Equatable {
@@ -33,13 +34,23 @@ public final class PomodoroEngine: ObservableObject {
 
     private let clock: PomodoroClock
     private var timer: Timer?
+    /// Plays the overlay end reminder sound; defaults to the macOS system
+    /// "Hero" sound and is injectable for tests.
+    private let playOverlayEndSound: () -> Void
 
-    public init(clock: PomodoroClock = SystemPomodoroClock()) {
+    public init(clock: PomodoroClock = SystemPomodoroClock(), playOverlayEndSound: @escaping () -> Void = { NSSound(named: "Hero")?.play() }) {
         self.clock = clock
+        self.playOverlayEndSound = playOverlayEndSound
     }
 
     public var isPaused: Bool {
         phase == .paused
+    }
+
+    /// Whether the overlay end reminder sound should play at all. Reads the
+    /// shared store so the settings toggle applies without restarting.
+    public var isOverlayEndSoundEnabled: Bool {
+        PomodoroStore.shared.settings.isOverlaySoundEnabled
     }
 
     /// Runs a fresh pomodoro run (work -> break cycle) for the given task.
@@ -150,6 +161,15 @@ public final class PomodoroEngine: ObservableObject {
             phase = .working
             remainingSeconds = task.workIntervalSeconds
             didChangePhase = true
+
+            // The overlay that displayed this break has just ended on its own
+            // (the countdown reached zero). Remind the user that they may
+            // continue with the computer via the system sound. When another
+            // task break is still pending the overlay overlap is resolved by
+            // the later end, so the reminder waits for that final one.
+            if isOverlayEndSoundEnabled && !hasPendingBreaks {
+                playOverlayEndSound()
+            }
         }
 
         // Keep the featured run's countdown in sync while it is working or in
@@ -242,6 +262,14 @@ public final class PomodoroEngine: ObservableObject {
     private func notifyChange() {
         remainingSeconds = max(0, remainingSeconds)
         NotificationCenter.default.post(name: NSNotification.Name("PomodoroPhaseChanged"), object: self)
+    }
+
+    /// True while another task run is still breaking, i.e. while the overlay
+    /// that just ended was overlapped by a still running break.
+    private var hasPendingBreaks: Bool {
+        runs.values.contains { run in
+            run.phase == .breaking && (run.endDate?.timeIntervalSinceNow ?? 0) > 0
+        }
     }
 
     private static func remainingSeconds(for run: TaskRun) -> TimeInterval {

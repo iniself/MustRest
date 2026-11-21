@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var draftTasks: [Task] = Task.defaultTasks()
     @State private var draftIsOverlayBlocking: Bool = true
     @State private var draftAutoLaunchEnabled: Bool = false
+    @State private var draftIsOverlaySoundEnabled: Bool = true
     @State private var showingResetAlert = false
 
     var body: some View {
@@ -64,6 +65,13 @@ struct SettingsView: View {
                             Toggle("开机自动启动", isOn: Binding(
                                 get: { draftAutoLaunchEnabled },
                                 set: { draftAutoLaunchEnabled = $0 }
+                            ))
+
+                            // Plays the system reminder sound when the overlay
+                            // ends after a natural countdown finish.
+                            Toggle("遮罩结束音效", isOn: Binding(
+                                get: { draftIsOverlaySoundEnabled },
+                                set: { draftIsOverlaySoundEnabled = $0 }
                             ))
                         }
                         .formStyle(.grouped)
@@ -151,6 +159,7 @@ struct SettingsView: View {
             draftTasks = store.settings.tasks
             draftIsOverlayBlocking = store.settings.isOverlayBlocking
             draftAutoLaunchEnabled = store.settings.autoLaunchEnabled
+            draftIsOverlaySoundEnabled = store.settings.isOverlaySoundEnabled
         }
     }
 
@@ -160,6 +169,7 @@ struct SettingsView: View {
         newSettings.tasks = draftTasks
         newSettings.isOverlayBlocking = draftIsOverlayBlocking
         newSettings.autoLaunchEnabled = draftAutoLaunchEnabled
+        newSettings.isOverlaySoundEnabled = draftIsOverlaySoundEnabled
         store.saveSettings(newSettings)
 
         // Apply the login item registration immediately so the toggle takes

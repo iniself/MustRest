@@ -10,11 +10,15 @@ public struct PomodoroSettings: Codable {
     /// launches automatically at computer boot; the launch then triggers the
     /// automatic pomodoro start (see MustRestApp).
     public var autoLaunchEnabled: Bool
+    /// When true the overlay end reminder sound ("Hero" system sound) plays
+    /// after a break finished naturally; when false no sound is played.
+    public var isOverlaySoundEnabled: Bool
 
-    public init(tasks: [Task] = Task.defaultTasks(), isOverlayBlocking: Bool = true, autoLaunchEnabled: Bool = false) {
+    public init(tasks: [Task] = Task.defaultTasks(), isOverlayBlocking: Bool = true, autoLaunchEnabled: Bool = false, isOverlaySoundEnabled: Bool = true) {
         self.tasks = tasks
         self.isOverlayBlocking = isOverlayBlocking
         self.autoLaunchEnabled = autoLaunchEnabled
+        self.isOverlaySoundEnabled = isOverlaySoundEnabled
     }
 }
 
@@ -29,6 +33,7 @@ public final class PomodoroStore: ObservableObject {
         static let tasks = "mustrest.tasks"
         static let isOverlayBlocking = "mustrest.isOverlayBlocking"
         static let autoLaunchEnabled = "mustrest.autoLaunchEnabled"
+        static let isOverlaySoundEnabled = "mustrest.isOverlaySoundEnabled"
     }
 
     public init(defaults: UserDefaults = .standard) {
@@ -50,10 +55,15 @@ public final class PomodoroStore: ObservableObject {
         let autoLaunchEnabled = defaults.object(forKey: Keys.autoLaunchEnabled) == nil
             ? false
             : defaults.bool(forKey: Keys.autoLaunchEnabled)
+        // Defaults to on (play the overlay end sound) when the key is missing.
+        let isOverlaySoundEnabled = defaults.object(forKey: Keys.isOverlaySoundEnabled) == nil
+            ? true
+            : defaults.bool(forKey: Keys.isOverlaySoundEnabled)
         self.settings = PomodoroSettings(
             tasks: tasks,
             isOverlayBlocking: isOverlayBlocking,
-            autoLaunchEnabled: autoLaunchEnabled
+            autoLaunchEnabled: autoLaunchEnabled,
+            isOverlaySoundEnabled: isOverlaySoundEnabled
         )
     }
 
@@ -62,6 +72,7 @@ public final class PomodoroStore: ObservableObject {
         defaults.set(data, forKey: Keys.tasks)
         defaults.set(newSettings.isOverlayBlocking, forKey: Keys.isOverlayBlocking)
         defaults.set(newSettings.autoLaunchEnabled, forKey: Keys.autoLaunchEnabled)
+        defaults.set(newSettings.isOverlaySoundEnabled, forKey: Keys.isOverlaySoundEnabled)
         self.settings = newSettings
     }
 }
