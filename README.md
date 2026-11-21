@@ -1,38 +1,46 @@
 # MustRest
 
-一个 macOS 番茄钟 / 休息提醒应用。
+A macOS pomodoro / break reminder app.
 
-## 功能
+## Language
 
-1. 通过定时提醒用户休息。
-2. 遮罩默认全屏显示，遮罩颜色为 `#B98278`。开关打开（“遮罩全屏”）时禁止提前退出，必须等计时结束；关闭（“允许退出”）时，遮罩中的“退出”按钮可以提前结束本次计时任务。
-3. 弹出的提醒默认显示该任务的名称，例如目前是“休息眼睛”。
-4. 默认任务：
-   - 休息眼睛：20 分钟工作后，进行 15 秒的休息。
-   - 起身走走：1 小时工作后，进行 5 分钟的站立运动。
-   - 锻炼身体：2 小时工作后，进行 10 分钟的锻炼。
-5. 以上默认值都可以在设置中自行修改。
-6. 程序启动后会自动开始任务倒计时，无需手动点击菜单栏的“开始”。
-7. 设置中可开启“开机自动启动”开关：开启后，电脑重启后会自动启动应用，并自动开始任务。
-8. 多个任务可以并行倒计时 / 休息。
+- [中文版 / Chinese](README-cn.md)
 
-## 构建
+## Features
 
-本项目使用 Swift Package Manager 管理，系统要求 macOS 15 及以上。
+1. Reminds the user to take a break.
+2. The overlay is full screen by default with background color `#B98278`. When the switch is on ("Full Screen Overlay") early exit is not allowed and the user must wait for the timer to finish; when off ("Allow Exit"), the "Exit" button in the overlay can end the current task early.
+3. The overlay reminder shows the task name by default, e.g. "Eye Rest".
+4. Default tasks:
+   - Eye Rest: work 20 minutes, then 15 seconds of break.
+   - Standing Break: work 1 hour, then 5 minutes of standing.
+   - Exercise: work 2 hours, then 10 minutes of exercise.
+5. These defaults can be customized in Settings.
+
+6. On launch the app automatically starts the countdown; no need to manually click "Start" in the menu bar.
+
+7. An "Auto Launch at Boot" switch is available in Settings: when enabled, the app launches automatically at computer boot and automatically starts the tasks.
+
+8. Multiple tasks can run countdowns / breaks in parallel.
+
+## Build
+
+The project uses Swift Package Manager. System requirement: macOS 15 or later.
 
 ```bash
 swift build
 swift run MustRestApp
 ```
 
-## 测试
+## Tests
 
 ```bash
 swift test
 ```
 
-## 项目结构
+## Project Structure
 
-- `Sources/MustRest` - 核心逻辑（任务、计时引擎、设置）。
-- `Sources/MustRestApp` - macOS 应用界面（菜单栏、遮罩提醒窗口、设置窗口）。
-- `Tests/MustRestTests` - 单元测试。
+- `Sources/MustRest` - Core logic (tasks, timer engine, settings).
+- `Sources/MustRestApp` - macOS app UI (menu bar, overlay reminder window, settings window).
+- `Tests/MustRestTests` - Unit tests.
+
