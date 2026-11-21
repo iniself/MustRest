@@ -13,6 +13,7 @@ struct SettingsView: View {
     /// discards the drafts, keeping the previously saved settings untouched.
     @State private var draftTasks: [Task] = Task.defaultTasks()
     @State private var draftIsOverlayBlocking: Bool = true
+    @State private var draftAutoLaunchEnabled: Bool = false
     @State private var showingResetAlert = false
 
     var body: some View {
@@ -55,6 +56,14 @@ struct SettingsView: View {
                             Toggle(draftIsOverlayBlocking ? "遮罩全屏" : "允许退出", isOn: Binding(
                                 get: { draftIsOverlayBlocking },
                                 set: { draftIsOverlayBlocking = $0 }
+                            ))
+
+                            // When ON the app registers itself as a login item
+                            // and launches automatically at computer boot; the
+                            // launch then triggers the automatic pomodoro start.
+                            Toggle("开机自动启动", isOn: Binding(
+                                get: { draftAutoLaunchEnabled },
+                                set: { draftAutoLaunchEnabled = $0 }
                             ))
                         }
                         .formStyle(.grouped)
@@ -141,6 +150,7 @@ struct SettingsView: View {
             // is presented, so discarded edits never leak into the next session.
             draftTasks = store.settings.tasks
             draftIsOverlayBlocking = store.settings.isOverlayBlocking
+            draftAutoLaunchEnabled = store.settings.autoLaunchEnabled
         }
     }
 
@@ -149,7 +159,12 @@ struct SettingsView: View {
         var newSettings = store.settings
         newSettings.tasks = draftTasks
         newSettings.isOverlayBlocking = draftIsOverlayBlocking
+        newSettings.autoLaunchEnabled = draftAutoLaunchEnabled
         store.saveSettings(newSettings)
+
+        // Apply the login item registration immediately so the toggle takes
+        // effect without restarting the app.
+        windowManager.setAutoLaunchEnabled(draftAutoLaunchEnabled)
     }
 
     private func addTask() {

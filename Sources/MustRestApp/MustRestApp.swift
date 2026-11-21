@@ -4,9 +4,24 @@ import MustRest
 
 @main
 struct MustRestApp: App {
-    @StateObject private var engine = PomodoroEngine()
-    @StateObject private var store = PomodoroStore.shared
-    @StateObject private var windowManager = WindowManager()
+    @StateObject private var engine: PomodoroEngine
+    @StateObject private var store: PomodoroStore
+    @StateObject private var windowManager: WindowManager
+
+    init() {
+        let engine = PomodoroEngine()
+        let store = PomodoroStore.shared
+        _engine = StateObject(wrappedValue: engine)
+        _store = StateObject(wrappedValue: store)
+        _windowManager = StateObject(wrappedValue: WindowManager())
+
+        // Automatically start the pomodoro countdown on launch so the user
+        // does not have to press the menu "开始" button manually after every
+        // launch.
+        DispatchQueue.main.async {
+            engine.startAll(tasks: store.settings.tasks)
+        }
+    }
 
     /// Stable binding instance: creating a new `Binding` on every body
     /// evaluation makes SwiftUI build a new menu on each render.

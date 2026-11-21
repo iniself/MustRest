@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ServiceManagement
 import MustRest
 
 class WindowManager: ObservableObject {
@@ -191,5 +192,17 @@ class WindowManager: ObservableObject {
         NSColorPanel.shared.close()
         settingsWindow?.close()
         settingsWindow = nil
+    }
+
+    /// Registers / unregisters the app as a login item so macOS launches it
+    /// automatically at computer boot. Called from the settings "auto launch"
+    /// toggle; the actual launch at login is then handled by launchd.
+    func setAutoLaunchEnabled(_ enabled: Bool) {
+        let service = SMAppService.mainApp
+        if enabled {
+            _ = try? service.register()
+        } else {
+            _ = try? service.unregister()
+        }
     }
 }
