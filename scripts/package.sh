@@ -52,7 +52,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
     <key>LSUIElement</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
+    <string>15.0</string>
     <key>LSHighResolutionCapable</key>
     <true/>
 </dict>
