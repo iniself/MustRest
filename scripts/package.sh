@@ -73,9 +73,9 @@ hdiutil create \
     -volname "${BUNDLE_NAME}" \
     -srcfolder "${STAGE}" \
     -format UDZO \
-    -o "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}.dmg"
+    -o "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}-universal.dmg"
 
 rm -rf "${STAGE}"
 rm -f "${OUT_DIR}/${APP_NAME}"
 
-echo "Packaged Universal Binary: ${BUNDLE_NAME}-${VERSION}.dmg"
+echo "Packaged Universal Binary: ${BUNDLE_NAME}-${VERSION}-universal.dmg"
