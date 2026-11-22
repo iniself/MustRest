@@ -268,6 +268,14 @@ public final class PomodoroEngine: ObservableObject {
         updatedRun.endDate = run.endDate
         updatedRun.remainingAtPause = run.remainingAtPause
         updatedRun.pausedFrom = run.pausedFrom
+        // When a running countdown's task duration changed, restart the end
+        // date so the new interval takes effect immediately.
+        if run.phase == .working, task.workIntervalSeconds != run.task.workIntervalSeconds {
+            updatedRun.endDate = clock.now().addingTimeInterval(task.workIntervalSeconds)
+        }
+        if run.phase == .breaking, task.breakDurationSeconds != run.task.breakDurationSeconds {
+            updatedRun.endDate = clock.now().addingTimeInterval(task.breakDurationSeconds)
+        }
         runs[task.id] = updatedRun
         if currentTask?.id == task.id {
             currentTask = task
