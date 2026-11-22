@@ -252,16 +252,23 @@ struct SettingsView: View {
     }
 
     /// Button that opens the custom sound file importer; shows the currently
-    /// chosen custom file name when a custom sound is active.
+    /// chosen custom file name when a custom sound is active. Right aligned
+    /// like the system sound picker.
     private var customSoundPicker: some View {
         Group {
             if draftOverlaySoundIsCustom {
-                Button(action: { showingSoundFileImporter = true }) {
-                    Label(draftOverlaySoundName, systemImage: "music.note")
+                HStack {
+                    Spacer()
+                    Button(action: { showingSoundFileImporter = true }) {
+                        Label(draftOverlaySoundName, systemImage: "music.note")
+                    }
                 }
             } else {
-                Button(action: { showingSoundFileImporter = true }) {
-                    Label("选择自定义音效…", systemImage: "music.note")
+                HStack {
+                    Spacer()
+                    Button(action: { showingSoundFileImporter = true }) {
+                        Label("选择自定义音效…", systemImage: "music.note")
+                    }
                 }
             }
         }
