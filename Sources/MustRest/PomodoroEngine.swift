@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import UserNotifications
 
 public final class PomodoroEngine: ObservableObject {
     public enum Phase: Equatable {
@@ -39,19 +40,49 @@ public final class PomodoroEngine: ObservableObject {
     /// sounds and falls back to the custom file in the app support directory.
     /// Injectable for tests.
     private let playOverlayEndSound: (String) -> Void
+    /// Schedules the local overlay warning notification that fires shortly
+    /// before the overlay appears; clears any previously pending warning first.
+    /// Injectable for tests.
+    private let scheduleOverlayWarning: (Date, String, String) -> Void
+    /// Cancels the pending overlay warning notification, if any.
+    /// Injectable for tests.
+    private let cancelOverlayWarning: () -> Void
 
-    public init(clock: PomodoroClock = SystemPomodoroClock(), playOverlayEndSound: @escaping (String) -> Void = { name in
-        if let sound = NSSound(named: name) {
-            sound.play()
-            return
+    public init(
+        clock: PomodoroClock = SystemPomodoroClock(),
+        playOverlayEndSound: @escaping (String) -> Void = { name in
+            if let sound = NSSound(named: name) {
+                sound.play()
+                return
+            }
+            let customURL = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/MustRest/Sounds/" + name)
+            if FileManager.default.fileExists(atPath: customURL.path), let sound = NSSound(contentsOfFile: customURL.path, byReference: false) {
+                sound.play()
+            }
+        },
+        scheduleOverlayWarning: @escaping (Date, String, String) -> Void = { fireDate, title, message in
+            let center = UNUserNotificationCenter.current()
+            center.removePendingNotificationRequests(withIdentifiers: ["MustRest.OverlayWarning"])
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = message
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fireDate.timeIntervalSinceNow, repeats: false)
+            let request = UNNotificationRequest(identifier: "MustRest.OverlayWarning", content: content, trigger: trigger)
+            center.add(request) { _ in }
+        },
+        cancelOverlayWarning: @escaping () -> Void = {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["MustRest.OverlayWarning"])
         }
-        let customURL = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/MustRest/Sounds/" + name)
-        if FileManager.default.fileExists(atPath: customURL.path), let sound = NSSound(contentsOfFile: customURL.path, byReference: false) {
-            sound.play()
-        }
-    }) {
+    ) {
         self.clock = clock
         self.playOverlayEndSound = playOverlayEndSound
+        self.scheduleOverlayWarning = scheduleOverlayWarning
+        self.cancelOverlayWarning = cancelOverlayWarning
+        // Register for local notifications so the overlay warning banner can
+        // be delivered.
+        UNUserNotificationCenter.current().requestAuthorization(options: [.badge]) { granted, _ in
+            // Local overlay warning notifications are delivered without a sound.
+        }
     }
 
     public var isPaused: Bool {
@@ -81,6 +112,7 @@ public final class PomodoroEngine: ObservableObject {
         phase = .working
         remainingSeconds = task.workIntervalSeconds
         scheduleTimer()
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -99,6 +131,7 @@ public final class PomodoroEngine: ObservableObject {
         phase = .working
         remainingSeconds = tasks[0].workIntervalSeconds
         scheduleTimer()
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -118,6 +151,7 @@ public final class PomodoroEngine: ObservableObject {
         phase = .paused
         remainingSeconds = max(0, runs[taskId]?.remainingAtPause ?? 0)
         invalidateTimer()
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -138,6 +172,7 @@ public final class PomodoroEngine: ObservableObject {
         phase = run.phase == .paused ? .working : run.phase
         remainingSeconds = max(0, run.endDate?.timeIntervalSinceNow ?? 0)
         scheduleTimer()
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -223,6 +258,7 @@ public final class PomodoroEngine: ObservableObject {
             }
         }
 
+        syncOverlayWarning()
         if didChangePhase {
             notifyChange()
         }
@@ -236,6 +272,7 @@ public final class PomodoroEngine: ObservableObject {
         remainingSeconds = 0
         currentTask = nil
         invalidateTimer()
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -255,6 +292,7 @@ public final class PomodoroEngine: ObservableObject {
         runs[taskId] = nil
         phase = .idle
         remainingSeconds = 0
+        syncOverlayWarning()
         notifyChange()
     }
 
@@ -280,6 +318,7 @@ public final class PomodoroEngine: ObservableObject {
         if currentTask?.id == task.id {
             currentTask = task
         }
+        syncOverlayWarning()
     }
 
     private func scheduleTimer() {
@@ -304,6 +343,28 @@ public final class PomodoroEngine: ObservableObject {
     private func notifyChange() {
         remainingSeconds = max(0, remainingSeconds)
         NotificationCenter.default.post(name: NSNotification.Name("PomodoroPhaseChanged"), object: self)
+    }
+
+    /// Keeps the local overlay warning notification in sync with the engine
+    /// state: while a work countdown is running it schedules the warning that
+    /// fires ten seconds before the upcoming break overlay appears, otherwise
+    /// it cancels the pending warning (paused / cancelled / idle / overlay now
+    /// showing).
+    private func syncOverlayWarning() {
+        guard phase == .working,
+              let taskId = currentTask?.id,
+              let run = runs[taskId],
+              run.phase == .working,
+              let endDate = run.endDate else {
+            cancelOverlayWarning()
+            return
+        }
+        // The overlay shows the break countdown right when the work interval
+        // ends, so warn the user ten seconds before that overlay appears.
+        let fireDate = endDate.addingTimeInterval(-10)
+        let taskName = run.task.name
+        let message = "休息时间开始"
+        scheduleOverlayWarning(fireDate, taskName, message)
     }
 
     /// True while another task run is still breaking, i.e. while the overlay

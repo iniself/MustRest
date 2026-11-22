@@ -55,4 +55,49 @@ final class PomodoroEngineTests: XCTestCase {
         XCTAssertEqual(engine.phase, .working)
         XCTAssertEqual(engine.remainingSeconds, 10, accuracy: 0.001)
     }
+
+    func testOverlayWarningScheduledBeforeUpcomingBreakOverlay() {
+        var scheduledFireDate: Date?
+        var scheduledTitle: String?
+        var scheduledMessage: String?
+        var didCancel = false
+        let warningEngine = PomodoroEngine(
+            clock: clock,
+            playOverlayEndSound: { _ in },
+            scheduleOverlayWarning: { fireDate, title, message in
+                scheduledFireDate = fireDate
+                scheduledTitle = title
+                scheduledMessage = message
+            },
+            cancelOverlayWarning: { didCancel = true }
+        )
+
+        let task = Task(name: "休息眼睛", workIntervalSeconds: 10, breakDurationSeconds: 5)
+        warningEngine.start(task: task)
+        // The upcoming break overlay appears when the work interval ends, so
+        // the user has to be warned ten seconds before that overlay shows up.
+        XCTAssertNotNil(scheduledFireDate)
+        XCTAssertEqual(scheduledFireDate!.timeIntervalSinceNow, clock.now().timeIntervalSinceNow, accuracy: 0.001)
+        XCTAssertEqual(scheduledTitle, task.name)
+        XCTAssertEqual(scheduledMessage, "休息时间开始")
+        XCTAssertFalse(didCancel)
+
+        warningEngine.pause()
+        XCTAssertTrue(didCancel)
+    }
+
+    func testOverlayWarningCancelledWhenBreakStarts() {
+        var didCancel = false
+        let warningEngine = PomodoroEngine(
+            clock: clock,
+            playOverlayEndSound: { _ in },
+            scheduleOverlayWarning: { _ in },
+            cancelOverlayWarning: { didCancel = true }
+        )
+        let task = Task(name: "休息眼睛", workIntervalSeconds: 10, breakDurationSeconds: 5)
+        warningEngine.start(task: task)
+        warningEngine.tick(now: clock.now().addingTimeInterval(10))
+        XCTAssertEqual(warningEngine.phase, .breaking)
+        XCTAssertTrue(didCancel)
+    }
 }
