@@ -52,7 +52,10 @@ struct OverlayView: View {
     /// The overlay background color: the current task's custom color, or the
     /// default color when the task has none.
     private var overlayBackgroundColor: Color {
-        if let hex = engine.currentTask?.overlayBackgroundColor, !hex.isEmpty {
+        let task = engine.currentTask.flatMap { task in
+            store.settings.tasks.first { $0.id == task.id } ?? task
+        }
+        if let hex = task?.overlayBackgroundColor, !hex.isEmpty {
             return Self.color(fromHex: hex)
         }
         return Self.color(fromHex: "#B98278")

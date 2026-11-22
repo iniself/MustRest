@@ -258,6 +258,22 @@ public final class PomodoroEngine: ObservableObject {
         notifyChange()
     }
 
+    /// Updates the task data of an existing run (e.g. after the user changed
+    /// task durations / colors in the settings) so countdowns and breaks pick
+    /// up the new values without restarting the engine.
+    public func updateTask(_ task: Task) {
+        guard let run = runs[task.id] else { return }
+        var updatedRun = TaskRun(task: task)
+        updatedRun.phase = run.phase
+        updatedRun.endDate = run.endDate
+        updatedRun.remainingAtPause = run.remainingAtPause
+        updatedRun.pausedFrom = run.pausedFrom
+        runs[task.id] = updatedRun
+        if currentTask?.id == task.id {
+            currentTask = task
+        }
+    }
+
     private func scheduleTimer() {
         invalidateTimer()
         // Capture the engine strongly: the engine is owned by the app for its

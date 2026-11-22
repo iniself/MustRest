@@ -204,6 +204,12 @@ struct SettingsView: View {
         newSettings.overlaySoundName = draftOverlaySoundIsCustom ? draftOverlaySoundName : (draftOverlaySoundName == "Hero" ? nil : draftOverlaySoundName)
         store.saveSettings(newSettings)
 
+        // Propagate task changes to the running engine so countdowns /
+        // breaks pick up new durations / colors without a restart.
+        for task in newSettings.tasks {
+            engine.updateTask(task)
+        }
+
         // Apply the login item registration immediately so the toggle takes
         // effect without restarting the app.
         windowManager.setAutoLaunchEnabled(draftAutoLaunchEnabled)
