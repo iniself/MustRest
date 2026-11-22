@@ -2,6 +2,18 @@ import Foundation
 import AppKit
 import UserNotifications
 
+/// True when the process runs inside a real `.app` bundle.
+///
+/// `UNUserNotificationCenter` calls `+currentNotificationCenter`, which is
+/// implemented with an assertion that the process has a bundle. Running the
+/// raw Swift Package executable (for example `swift run MustRestApp`) has no
+/// bundle, so every notification call throws an Objective-C exception and
+/// crashes the process. Notification features are simply skipped when no
+/// bundle is present; the rest of the app keeps working.
+public var isRunningInAppBundle: Bool {
+    Bundle.main.bundleIdentifier != nil
+}
+
 public final class PomodoroEngine: ObservableObject {
     public enum Phase: Equatable {
         case idle
@@ -61,16 +73,26 @@ public final class PomodoroEngine: ObservableObject {
             }
         },
         scheduleOverlayWarning: @escaping (Date, String, String) -> Void = { fireDate, title, message in
+            // See `isRunningInAppBundle`: the notification center is unusable
+            // without a bundle and calling into it raises an Objective-C
+            // exception.
+            guard isRunningInAppBundle else { return }
+            let timeInterval = fireDate.timeIntervalSinceNow
+            // `UNTimeIntervalNotificationTrigger` rejects non-positive
+            // intervals, which happens when a task's work interval is shorter
+            // than the warning lead time.
+            guard timeInterval > 0 else { return }
             let center = UNUserNotificationCenter.current()
             center.removePendingNotificationRequests(withIdentifiers: ["MustRest.OverlayWarning"])
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = message
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fireDate.timeIntervalSinceNow, repeats: false)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
             let request = UNNotificationRequest(identifier: "MustRest.OverlayWarning", content: content, trigger: trigger)
             center.add(request) { _ in }
         },
         cancelOverlayWarning: @escaping () -> Void = {
+            guard isRunningInAppBundle else { return }
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["MustRest.OverlayWarning"])
         }
     ) {
@@ -79,9 +101,18 @@ public final class PomodoroEngine: ObservableObject {
         self.scheduleOverlayWarning = scheduleOverlayWarning
         self.cancelOverlayWarning = cancelOverlayWarning
         // Register for local notifications so the overlay warning banner can
-        // be delivered.
-        UNUserNotificationCenter.current().requestAuthorization(options: [.badge]) { granted, _ in
-            // Local overlay warning notifications are delivered without a sound.
+        // be delivered. Alert (banner) authorization is required: the badge
+        // option alone never presents the notification to the user.
+        //
+        // `UNUserNotificationCenter` only works inside a real app bundle.
+        // Running the raw executable (e.g. `swift run MustRestApp`) makes the
+        // system raise an Objective-C exception and crash the process, so the
+        // notification code is skipped entirely when no bundle is present.
+        if isRunningInAppBundle {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
+                // The warning banner itself is silent; the overlay end reminder
+                // sound is played separately by the engine.
+            }
         }
     }
 

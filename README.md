@@ -25,12 +25,15 @@ A macOS pomodoro / break reminder app.
 
 ## Build
 
-The project uses Swift Package Manager. System requirement: macOS 15 or later.
+The project uses Swift Package Manager. Requirements: macOS 15 or later, and Xcode 16 / Swift 6 or later to compile.
 
 ```bash
-swift build
-swift run MustRestApp
+swift build      # compile check
+./scripts/package.sh
+open "dist/MustRest.app"
 ```
+
+Always run the packaged `.app`. Do **not** run `swift run MustRestApp`: the bare Swift Package executable has no app bundle, so the system notification reminder and the "Auto Launch at Boot" login item cannot work there. For auto launch, move `MustRest.app` into `/Applications` before turning the switch on.
 
 ## Tests
 

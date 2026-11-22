@@ -18,12 +18,15 @@
 
 ## 构建
 
-本项目使用 Swift Package Manager 管理，系统要求 macOS 15 及以上。
+本项目使用 Swift Package Manager 管理，系统要求 macOS 15 及以上，编译需要 Xcode 16 / Swift 6 及以上。
 
 ```bash
-swift build
-swift run MustRestApp
+swift build      # 仅检查能否编译
+./scripts/package.sh
+open "dist/MustRest.app"
 ```
+
+请始终运行打包后的 `.app`，**不要**用 `swift run MustRestApp`：裸可执行文件没有 app bundle，系统通知提醒和“开机自动启动”的登录项都无法工作。要使用开机自启，请先把 `MustRest.app` 放进“应用程序”文件夹，再打开开关。
 
 ## 测试
 
