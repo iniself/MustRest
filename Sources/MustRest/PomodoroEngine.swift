@@ -34,11 +34,22 @@ public final class PomodoroEngine: ObservableObject {
 
     private let clock: PomodoroClock
     private var timer: Timer?
-    /// Plays the overlay end reminder sound; defaults to the macOS system
-    /// "Hero" sound and is injectable for tests.
-    private let playOverlayEndSound: () -> Void
+    /// Plays the overlay end reminder sound for the given sound name (a macOS
+    /// system sound name or a custom sound file name); defaults to the system
+    /// sounds and falls back to the custom file in the app support directory.
+    /// Injectable for tests.
+    private let playOverlayEndSound: (String) -> Void
 
-    public init(clock: PomodoroClock = SystemPomodoroClock(), playOverlayEndSound: @escaping () -> Void = { NSSound(named: "Hero")?.play() }) {
+    public init(clock: PomodoroClock = SystemPomodoroClock(), playOverlayEndSound: @escaping (String) -> Void = { name in
+        if let sound = NSSound(named: name) {
+            sound.play()
+            return
+        }
+        let customURL = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/MustRest/Sounds/" + name)
+        if FileManager.default.fileExists(atPath: customURL.path), let sound = NSSound(contentsOfFile: customURL.path, byReference: false) {
+            sound.play()
+        }
+    }) {
         self.clock = clock
         self.playOverlayEndSound = playOverlayEndSound
     }
@@ -51,6 +62,12 @@ public final class PomodoroEngine: ObservableObject {
     /// shared store so the settings toggle applies without restarting.
     public var isOverlayEndSoundEnabled: Bool {
         PomodoroStore.shared.settings.isOverlaySoundEnabled
+    }
+
+    /// The user-selected overlay end sound; nil falls back to the default
+    /// system "Hero" sound.
+    public var overlayEndSoundName: String? {
+        PomodoroStore.shared.settings.overlaySoundName
     }
 
     /// Runs a fresh pomodoro run (work -> break cycle) for the given task.
@@ -167,8 +184,9 @@ public final class PomodoroEngine: ObservableObject {
             // continue with the computer via the system sound. When another
             // task break is still pending the overlay overlap is resolved by
             // the later end, so the reminder waits for that final one.
-            if isOverlayEndSoundEnabled && !hasPendingBreaks {
-                playOverlayEndSound()
+            let resolvedOverlayEndSoundName: String? = overlayEndSoundName ?? "Hero"
+            if isOverlayEndSoundEnabled, !hasPendingBreaks, let soundName = resolvedOverlayEndSoundName {
+                playOverlayEndSound(soundName)
             }
         }
 

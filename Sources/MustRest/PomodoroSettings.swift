@@ -10,15 +10,20 @@ public struct PomodoroSettings: Codable {
     /// launches automatically at computer boot; the launch then triggers the
     /// automatic pomodoro start (see MustRestApp).
     public var autoLaunchEnabled: Bool
-    /// When true the overlay end reminder sound ("Hero" system sound) plays
-    /// after a break finished naturally; when false no sound is played.
+    /// When true the overlay end reminder sound plays after a break finished
+    /// naturally; when false no sound is played.
     public var isOverlaySoundEnabled: Bool
+    /// The overlay end sound to play: a macOS system sound name (e.g. "Hero")
+    /// or a custom sound file name; nil falls back to the default system
+    /// "Hero" sound.
+    public var overlaySoundName: String?
 
-    public init(tasks: [Task] = Task.defaultTasks(), isOverlayBlocking: Bool = true, autoLaunchEnabled: Bool = false, isOverlaySoundEnabled: Bool = true) {
+    public init(tasks: [Task] = Task.defaultTasks(), isOverlayBlocking: Bool = true, autoLaunchEnabled: Bool = false, isOverlaySoundEnabled: Bool = true, overlaySoundName: String? = nil) {
         self.tasks = tasks
         self.isOverlayBlocking = isOverlayBlocking
         self.autoLaunchEnabled = autoLaunchEnabled
         self.isOverlaySoundEnabled = isOverlaySoundEnabled
+        self.overlaySoundName = overlaySoundName
     }
 }
 
@@ -34,6 +39,7 @@ public final class PomodoroStore: ObservableObject {
         static let isOverlayBlocking = "mustrest.isOverlayBlocking"
         static let autoLaunchEnabled = "mustrest.autoLaunchEnabled"
         static let isOverlaySoundEnabled = "mustrest.isOverlaySoundEnabled"
+        static let overlaySoundName = "mustrest.overlaySoundName"
     }
 
     public init(defaults: UserDefaults = .standard) {
@@ -59,11 +65,15 @@ public final class PomodoroStore: ObservableObject {
         let isOverlaySoundEnabled = defaults.object(forKey: Keys.isOverlaySoundEnabled) == nil
             ? true
             : defaults.bool(forKey: Keys.isOverlaySoundEnabled)
+        // Defaults to the system "Hero" sound when the key is missing.
+        let overlaySoundName = defaults.string(forKey: Keys.overlaySoundName)
+        let resolvedOverlaySoundName = overlaySoundName?.isEmpty == false ? overlaySoundName : nil
         self.settings = PomodoroSettings(
             tasks: tasks,
             isOverlayBlocking: isOverlayBlocking,
             autoLaunchEnabled: autoLaunchEnabled,
-            isOverlaySoundEnabled: isOverlaySoundEnabled
+            isOverlaySoundEnabled: isOverlaySoundEnabled,
+            overlaySoundName: resolvedOverlaySoundName
         )
     }
 
@@ -73,6 +83,7 @@ public final class PomodoroStore: ObservableObject {
         defaults.set(newSettings.isOverlayBlocking, forKey: Keys.isOverlayBlocking)
         defaults.set(newSettings.autoLaunchEnabled, forKey: Keys.autoLaunchEnabled)
         defaults.set(newSettings.isOverlaySoundEnabled, forKey: Keys.isOverlaySoundEnabled)
+        defaults.set(newSettings.overlaySoundName, forKey: Keys.overlaySoundName)
         self.settings = newSettings
     }
 }

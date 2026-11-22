@@ -15,6 +15,9 @@ struct SettingsView: View {
     @State private var draftIsOverlayBlocking: Bool = true
     @State private var draftAutoLaunchEnabled: Bool = false
     @State private var draftIsOverlaySoundEnabled: Bool = true
+    @State private var draftOverlaySoundName: String = "Hero"
+    @State private var draftOverlaySoundIsCustom: Bool = false
+    @State private var showingSoundFileImporter = false
     @State private var showingResetAlert = false
 
     var body: some View {
@@ -67,12 +70,44 @@ struct SettingsView: View {
                                 set: { draftAutoLaunchEnabled = $0 }
                             ))
 
-                            // Plays the system reminder sound when the overlay
-                            // ends after a natural countdown finish.
+                            // Plays the reminder sound when the overlay ends
+                            // after a natural countdown finish.
                             Toggle("遮罩结束音效", isOn: Binding(
                                 get: { draftIsOverlaySoundEnabled },
                                 set: { draftIsOverlaySoundEnabled = $0 }
                             ))
+
+                            // The actual reminder sound: a macOS system sound or
+                            // a custom audio file picked by the user.
+                            if draftIsOverlaySoundEnabled {
+                                if draftOverlaySoundIsCustom {
+                                    Button(action: { showingSoundFileImporter = true }) {
+                                        Label(draftOverlaySoundName, systemImage: "music.note")
+                                    }
+                                    .fileImporter(isPresented: $showingSoundFileImporter, allowedContentTypes: [.audio], allowsMultipleSelection: false) { result in
+                                        if case .success(let urls) = result, let url = urls.first {
+                                            importSoundFile(from: url)
+                                        }
+                                    }
+                                } else {
+                                    Picker("音效", selection: $draftOverlaySoundName) {
+                                        Text("Hero").tag("Hero")
+                                        Text("Glass").tag("Glass")
+                                        Text("Ping").tag("Ping")
+                                        Text("Pop").tag("Pop")
+                                        Text("Sosumi").tag("Sosumi")
+                                        Text("Submarine").tag("Submarine")
+                                        Text("Tink").tag("Tink")
+                                        Text("Funk").tag("Funk")
+                                        Text("Basso").tag("Basso")
+                                        Text("Blow").tag("Blow")
+                                        Text("Bottle").tag("Bottle")
+                                        Text("Frog").tag("Frog")
+                                        Text("Morse").tag("Morse")
+                                        Text("Purr").tag("Purr")
+                                    }
+                                }
+                            }
                         }
                         .formStyle(.grouped)
                     }
@@ -160,6 +195,8 @@ struct SettingsView: View {
             draftIsOverlayBlocking = store.settings.isOverlayBlocking
             draftAutoLaunchEnabled = store.settings.autoLaunchEnabled
             draftIsOverlaySoundEnabled = store.settings.isOverlaySoundEnabled
+            draftOverlaySoundName = store.settings.overlaySoundName ?? "Hero"
+            draftOverlaySoundIsCustom = store.settings.overlaySoundName?.range(of: ".") != nil
         }
     }
 
@@ -170,6 +207,7 @@ struct SettingsView: View {
         newSettings.isOverlayBlocking = draftIsOverlayBlocking
         newSettings.autoLaunchEnabled = draftAutoLaunchEnabled
         newSettings.isOverlaySoundEnabled = draftIsOverlaySoundEnabled
+        newSettings.overlaySoundName = draftOverlaySoundIsCustom ? draftOverlaySoundName : (draftOverlaySoundName == "Hero" ? nil : draftOverlaySoundName)
         store.saveSettings(newSettings)
 
         // Apply the login item registration immediately so the toggle takes
@@ -217,6 +255,18 @@ struct SettingsView: View {
         // Point the engine back at the first default task after the reset.
         engine.reset()
         engine.setCurrentTask(defaults[0])
+    }
+
+    /// Copies the picked audio file into the app support sounds directory
+    /// and marks it as the custom overlay end sound.
+    private func importSoundFile(from url: URL) {
+        let fm = FileManager.default
+        let supportDir = URL(fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/MustRest/Sounds")
+        try? fm.createDirectory(at: supportDir, withIntermediateDirectories: true)
+        let destURL = supportDir.appendingPathComponent(url.lastPathComponent)
+        try? fm.copyItem(at: url, to: destURL)
+        draftOverlaySoundName = url.lastPathComponent
+        draftOverlaySoundIsCustom = true
     }
 }
 
