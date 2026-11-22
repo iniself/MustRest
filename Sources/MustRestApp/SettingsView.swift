@@ -81,14 +81,7 @@ struct SettingsView: View {
                             // a custom audio file picked by the user.
                             if draftIsOverlaySoundEnabled {
                                 if draftOverlaySoundIsCustom {
-                                    Button(action: { showingSoundFileImporter = true }) {
-                                        Label(draftOverlaySoundName, systemImage: "music.note")
-                                    }
-                                    .fileImporter(isPresented: $showingSoundFileImporter, allowedContentTypes: [.audio], allowsMultipleSelection: false) { result in
-                                        if case .success(let urls) = result, let url = urls.first {
-                                            importSoundFile(from: url)
-                                        }
-                                    }
+                                    customSoundPicker
                                 } else {
                                     Picker("音效", selection: $draftOverlaySoundName) {
                                         Text("Hero").tag("Hero")
@@ -106,6 +99,7 @@ struct SettingsView: View {
                                         Text("Morse").tag("Morse")
                                         Text("Purr").tag("Purr")
                                     }
+                                    customSoundPicker
                                 }
                             }
                         }
@@ -255,6 +249,27 @@ struct SettingsView: View {
         // Point the engine back at the first default task after the reset.
         engine.reset()
         engine.setCurrentTask(defaults[0])
+    }
+
+    /// Button that opens the custom sound file importer; shows the currently
+    /// chosen custom file name when a custom sound is active.
+    private var customSoundPicker: some View {
+        Group {
+            if draftOverlaySoundIsCustom {
+                Button(action: { showingSoundFileImporter = true }) {
+                    Label(draftOverlaySoundName, systemImage: "music.note")
+                }
+            } else {
+                Button(action: { showingSoundFileImporter = true }) {
+                    Label("选择自定义音效…", systemImage: "music.note")
+                }
+            }
+        }
+        .fileImporter(isPresented: $showingSoundFileImporter, allowedContentTypes: [.audio], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                importSoundFile(from: url)
+            }
+        }
     }
 
     /// Copies the picked audio file into the app support sounds directory
