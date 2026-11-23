@@ -22,7 +22,7 @@
 
 ```bash
 swift build      # 仅检查能否编译
-./scripts/package.sh
+./scripts/package.sh 1.2.0    # 版本号作为参数传入
 open "dist/MustRest.app"
 ```
 

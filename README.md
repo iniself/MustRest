@@ -29,7 +29,7 @@ The project uses Swift Package Manager. Requirements: macOS 15 or later, and Xco
 
 ```bash
 swift build      # compile check
-./scripts/package.sh
+./scripts/package.sh 1.2.0    # version is the script argument
 open "dist/MustRest.app"
 ```
 
