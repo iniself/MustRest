@@ -78,8 +78,8 @@ final class PomodoroEngineTests: XCTestCase {
         // the user has to be warned ten seconds before that overlay shows up.
         XCTAssertNotNil(scheduledFireDate)
         XCTAssertEqual(scheduledFireDate!.timeIntervalSinceNow, clock.now().timeIntervalSinceNow, accuracy: 0.001)
-        XCTAssertEqual(scheduledTitle, task.name)
-        XCTAssertEqual(scheduledMessage, "休息时间开始")
+        XCTAssertEqual(scheduledTitle, "该休息了！")
+        XCTAssertEqual(scheduledMessage, "【\(task.name)】将在10秒内开始")
         XCTAssertFalse(didCancel)
 
         warningEngine.pause()

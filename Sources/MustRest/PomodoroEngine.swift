@@ -54,7 +54,7 @@ public final class PomodoroEngine: ObservableObject {
     private let playOverlayEndSound: (String) -> Void
     /// Schedules the local overlay warning notification that fires shortly
     /// before the overlay appears; clears any previously pending warning first.
-    /// Injectable for tests.
+    /// Arguments: fire date, title, body text. Injectable for tests.
     private let scheduleOverlayWarning: (Date, String, String) -> Void
     /// Cancels the pending overlay warning notification, if any.
     /// Injectable for tests.
@@ -86,6 +86,9 @@ public final class PomodoroEngine: ObservableObject {
             center.removePendingNotificationRequests(withIdentifiers: ["MustRest.OverlayWarning"])
             let content = UNMutableNotificationContent()
             content.title = title
+            // macOS notifications only render plain text here: unlike iOS,
+            // `UserNotifications` on macOS has no `attributedBody`, so a bold
+            // task name inside the body is not supported by the system.
             content.body = message
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
             let request = UNNotificationRequest(identifier: "MustRest.OverlayWarning", content: content, trigger: trigger)
@@ -392,10 +395,14 @@ public final class PomodoroEngine: ObservableObject {
         }
         // The overlay shows the break countdown right when the work interval
         // ends, so warn the user ten seconds before that overlay appears.
-        let fireDate = endDate.addingTimeInterval(-10)
+        let warningLeadTime: TimeInterval = 10
+        let fireDate = endDate.addingTimeInterval(-warningLeadTime)
         let taskName = run.task.name
-        let message = "休息时间开始"
-        scheduleOverlayWarning(fireDate, taskName, message)
+        let title = "该休息了！"
+        // macOS notification bodies are plain text, so the task name is
+        // highlighted with brackets instead of a bold font.
+        let message = "【\(taskName)】将在10秒内开始"
+        scheduleOverlayWarning(fireDate, title, message)
     }
 
     /// True while another task run is still breaking, i.e. while the overlay
