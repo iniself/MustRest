@@ -310,6 +310,15 @@ public final class PomodoroEngine: ObservableObject {
         notifyChange()
     }
 
+    /// Removes any pending overlay warning notification.
+    ///
+    /// Called when the app is about to quit: a notification that was already
+    /// scheduled stays registered in the system and would otherwise fire even
+    /// though the app is no longer running (and no overlay can appear).
+    public func cancelPendingOverlayWarning() {
+        cancelOverlayWarning()
+    }
+
     /// Sets the task that the toggle action should control next without
     /// starting the timer. Used when the user adds / edits tasks in settings.
     public func setCurrentTask(_ task: Task) {

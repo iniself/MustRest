@@ -15,6 +15,19 @@ struct MustRestApp: App {
         _store = StateObject(wrappedValue: store)
         _windowManager = StateObject(wrappedValue: WindowManager())
 
+        // A warning notification already handed to the system survives app
+        // termination, so drop any stale one from a previous session and
+        // cancel the pending warning when the app quits. Otherwise the user
+        // gets a "break is about to start" banner while the app is closed.
+        engine.cancelPendingOverlayWarning()
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            engine.cancelPendingOverlayWarning()
+        }
+
         // Automatically start the pomodoro countdown on launch so the user
         // does not have to press the menu "开始" button manually after every
         // launch.

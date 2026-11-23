@@ -100,4 +100,16 @@ final class PomodoroEngineTests: XCTestCase {
         XCTAssertEqual(warningEngine.phase, .breaking)
         XCTAssertTrue(didCancel)
     }
+
+    func testCancelPendingOverlayWarningCancelsScheduledWarning() {
+        var cancelCount = 0
+        let warningEngine = PomodoroEngine(
+            clock: clock,
+            playOverlayEndSound: { _ in },
+            scheduleOverlayWarning: { _, _, _ in },
+            cancelOverlayWarning: { cancelCount += 1 }
+        )
+        warningEngine.cancelPendingOverlayWarning()
+        XCTAssertEqual(cancelCount, 1)
+    }
 }
