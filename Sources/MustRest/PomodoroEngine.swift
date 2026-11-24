@@ -90,6 +90,7 @@ public final class PomodoroEngine: ObservableObject {
             // `UserNotifications` on macOS has no `attributedBody`, so a bold
             // task name inside the body is not supported by the system.
             content.body = message
+            content.sound = UNNotificationSound.default
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
             let request = UNNotificationRequest(identifier: "MustRest.OverlayWarning", content: content, trigger: trigger)
             center.add(request) { _ in }
@@ -113,8 +114,8 @@ public final class PomodoroEngine: ObservableObject {
         // notification code is skipped entirely when no bundle is present.
         if isRunningInAppBundle {
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in
-                // The warning banner itself is silent; the overlay end reminder
-                // sound is played separately by the engine.
+                // The warning banner plays the system default sound; the overlay
+                // end reminder sound is played separately by the engine.
             }
         }
     }
