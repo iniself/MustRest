@@ -27,23 +27,23 @@ struct OverlayView: View {
                         .foregroundColor(.white.opacity(0.9))
                 }
 
-                Text(formatTime(engine.remainingSeconds))
+                // While Escape is held, the big countdown switches to 3, 2, 1
+                // so the escape hatch is impossible to miss. Releasing the key
+                // immediately restores the break's remaining time.
+                Text(windowManager.escapeHoldRemainingSeconds.map { "\($0)" } ?? formatTime(engine.remainingSeconds))
                     .font(.system(size: 120, design: .monospaced))
                     .fontWeight(.black)
                     .foregroundColor(.white)
             }
 
             // While manual exit is allowed, the overlay shows the Escape hint.
-            // Holding Escape swaps the hint for a 3, 2, 1 countdown. The
-            // blocking overlay has no exit at all, so it shows nothing.
+            // The blocking overlay has no exit at all, so it shows nothing.
             if !store.settings.isOverlayBlocking {
                 VStack {
                     Spacer()
-                    Text(windowManager.escapeHoldRemainingSeconds.map { "\($0)" } ?? "长按 Esc 3 秒可退出")
+                    Text("长按 Esc 3 秒可退出")
                         .font(.callout)
-                        .fontWeight(windowManager.escapeHoldRemainingSeconds == nil ? .regular : .bold)
-                        .monospacedDigit()
-                        .foregroundColor(windowManager.escapeHoldRemainingSeconds == nil ? .white.opacity(0.75) : .white)
+                        .foregroundColor(.white.opacity(0.75))
                         .padding(.bottom, 28)
                 }
             }
