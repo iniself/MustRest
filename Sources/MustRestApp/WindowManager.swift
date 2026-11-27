@@ -103,6 +103,12 @@ class WindowManager: ObservableObject {
     private static let escapeHoldDuration: TimeInterval = 3
 
     private func beginEscapeHold() {
+        // A break that ends within the hold duration cannot be skipped anyway,
+        // and starting the 3-2-1 countdown would clash with the overlay's own
+        // final seconds, so ignore the hold in that case.
+        if let engine = engine, engine.remainingSeconds <= Self.escapeHoldDuration {
+            return
+        }
         cancelEscapeHold()
         let total = Int(Self.escapeHoldDuration)
         escapeHoldRemainingSeconds = total
