@@ -5,7 +5,9 @@ import MustRest
 
 class WindowManager: ObservableObject {
     private var settingsWindow: NSWindow?
-    private var overlayWindow: NSWindow?
+    /// One overlay window per display, keyed by display ID, so every screen is
+    /// covered instead of only the main one.
+    private var overlayWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var phaseObserver: NSObjectProtocol?
     private var colorPanelObserver: NSObjectProtocol?
     private var colorPanelTimer: Timer?
@@ -148,41 +150,72 @@ class WindowManager: ObservableObject {
     }
 
     func showOverlay(engine: PomodoroEngine, store: PomodoroStore) {
-        if overlayWindow == nil {
-            let window = NSWindow(
-                contentRect: NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080),
-                styleMask: [.borderless],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "Resting"
-            // NSWindow releases itself when closed by default (isReleasedWhenClosed
-            // defaults to YES), which would free the window while we still hold the
-            // reference; the subsequent `overlayWindow = nil` would then release the
-            // already-freed window and crash. Own the release lifecycle ourselves.
-            window.isReleasedWhenClosed = false
-            window.level = NSWindow.Level(rawValue: Int(NSScreen.main?.frame.size.height ?? 1080) + 2000)
-            self.overlayWindow = window
+        let screens = NSScreen.screens
+        let visibleDisplayIDs = Set(screens.map { displayID(for: $0) })
+
+        // Drop windows whose display is gone (for example an unplugged monitor)
+        // so no stale overlay is kept around.
+        let removedDisplayIDs = overlayWindows.keys.filter { !visibleDisplayIDs.contains($0) }
+        for id in removedDisplayIDs {
+            overlayWindows[id]?.close()
+            overlayWindows[id] = nil
         }
 
-        if let window = overlayWindow {
-            let contentView = OverlayView(engine: engine)
-                .environmentObject(store)
-            window.contentViewController = NSHostingController(rootView: contentView)
+        for screen in screens {
+            let id = displayID(for: screen)
+            let window = overlayWindows[id] ?? makeOverlayWindow(for: screen)
+            overlayWindows[id] = window
+
+            // Assigning a content view controller resizes the window to the
+            // controller's preferred size, so the frame has to be applied
+            // afterwards or the overlay collapses to a zero-sized window.
+            window.contentViewController = NSHostingController(
+                rootView: OverlayView(engine: engine).environmentObject(store)
+            )
+            window.setFrame(screen.frame, display: true)
+            window.level = overlayWindowLevel(for: screen)
             window.makeKeyAndOrderFront(nil)
-            // The overlay must cover the whole screen; make sure the window has
-            // a concrete frame before making it visible, otherwise it renders as
-            // a zero-sized (invisible) window.
-            let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
-            if window.frame.size.width <= 0 || window.frame.size.height <= 0 {
-                window.setFrame(screenFrame, display: true)
-            }
         }
     }
 
     func hideOverlay() {
-        overlayWindow?.close()
-        overlayWindow = nil
+        for window in overlayWindows.values {
+            window.close()
+        }
+        overlayWindows.removeAll()
+    }
+
+    /// Builds a borderless, opaque window that covers one screen.
+    private func makeOverlayWindow(for screen: NSScreen) -> NSWindow {
+        let window = NSWindow(
+            contentRect: screen.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Resting"
+        // NSWindow releases itself when closed by default (isReleasedWhenClosed
+        // defaults to YES), which would free the window while we still hold the
+        // reference; the subsequent release would then operate on freed memory.
+        // Own the release lifecycle ourselves.
+        window.isReleasedWhenClosed = false
+        // Stay on every Space and above other apps' full-screen Spaces, so
+        // switching desktops or entering full screen cannot dismiss the overlay.
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        window.level = overlayWindowLevel(for: screen)
+        return window
+    }
+
+    /// A window level above the menu bar, the Dock and the screen saver so the
+    /// overlay covers all of them.
+    private func overlayWindowLevel(for screen: NSScreen) -> NSWindow.Level {
+        NSWindow.Level(rawValue: Int(screen.frame.size.height) + 2000)
+    }
+
+    /// Stable identity for a display, used to reuse one overlay per screen.
+    private func displayID(for screen: NSScreen) -> CGDirectDisplayID {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (screen.deviceDescription[key] as? NSNumber)?.uint32Value ?? 0
     }
 
     func closeSettings() {
