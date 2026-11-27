@@ -5,6 +5,7 @@ import MustRest
 struct OverlayView: View {
     @ObservedObject var engine: PomodoroEngine
     @EnvironmentObject var store: PomodoroStore
+    @EnvironmentObject var windowManager: WindowManager
 
     var body: some View {
         ZStack {
@@ -33,13 +34,16 @@ struct OverlayView: View {
             }
 
             // While manual exit is allowed, the overlay shows the Escape hint.
-            // The blocking overlay has no exit at all, so it shows nothing.
+            // Holding Escape swaps the hint for a 3, 2, 1 countdown. The
+            // blocking overlay has no exit at all, so it shows nothing.
             if !store.settings.isOverlayBlocking {
                 VStack {
                     Spacer()
-                    Text("长按 Esc 3 秒可退出")
+                    Text(windowManager.escapeHoldRemainingSeconds.map { "\($0)" } ?? "长按 Esc 3 秒可退出")
                         .font(.callout)
-                        .foregroundColor(.white.opacity(0.75))
+                        .fontWeight(windowManager.escapeHoldRemainingSeconds == nil ? .regular : .bold)
+                        .monospacedDigit()
+                        .foregroundColor(windowManager.escapeHoldRemainingSeconds == nil ? .white.opacity(0.75) : .white)
                         .padding(.bottom, 28)
                 }
             }

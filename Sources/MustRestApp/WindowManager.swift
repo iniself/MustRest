@@ -23,6 +23,9 @@ class WindowManager: ObservableObject {
     private var colorPanelTimer: Timer?
     private var lastColorPanelVisible = false
     private var keyMonitor: Any?
+    /// Remaining seconds of the Escape long press while it is being held, or
+    /// nil when Escape is not pressed. Drives the overlay countdown text.
+    @Published private(set) var escapeHoldRemainingSeconds: Int?
     /// Timer backing the long-press Escape escape hatch.
     private var escapeHoldTimer: Timer?
     /// Throttles re-activation attempts triggered by losing focus.
@@ -101,18 +104,38 @@ class WindowManager: ObservableObject {
 
     private func beginEscapeHold() {
         cancelEscapeHold()
-        escapeHoldTimer = Timer.scheduledTimer(withTimeInterval: Self.escapeHoldDuration, repeats: false) { [weak self] _ in
-            self?.endOverlayByEscape()
+        let total = Int(Self.escapeHoldDuration)
+        escapeHoldRemainingSeconds = total
+        var remaining = total
+        // Tick once per second so the overlay counts down 3, 2, 1 while the
+        // key is held. Releasing the key cancels the timer.
+        escapeHoldTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+            remaining -= 1
+            if remaining > 0 {
+                self.escapeHoldRemainingSeconds = remaining
+            } else {
+                timer.invalidate()
+                self.escapeHoldTimer = nil
+                self.escapeHoldRemainingSeconds = nil
+                self.endOverlayByEscape()
+            }
         }
     }
 
     private func cancelEscapeHold() {
         escapeHoldTimer?.invalidate()
         escapeHoldTimer = nil
+        escapeHoldRemainingSeconds = nil
     }
 
     private func endOverlayByEscape() {
+        escapeHoldTimer?.invalidate()
         escapeHoldTimer = nil
+        escapeHoldRemainingSeconds = nil
         engine?.skipCurrentBreak()
     }
 
@@ -259,7 +282,9 @@ class WindowManager: ObservableObject {
             // controller's preferred size, so the frame has to be applied
             // afterwards or the overlay collapses to a zero-sized window.
             window.contentViewController = NSHostingController(
-                rootView: OverlayView(engine: engine).environmentObject(store)
+                rootView: OverlayView(engine: engine)
+                    .environmentObject(store)
+                    .environmentObject(self)
             )
             window.setFrame(screen.frame, display: true)
             window.level = overlayWindowLevel
