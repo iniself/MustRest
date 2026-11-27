@@ -431,9 +431,11 @@ class WindowManager: ObservableObject {
             // Assigning a content view controller resizes the window, so the
             // final size has to be applied afterwards.
             window.setContentSize(NSSize(width: 420, height: 620))
-            window.center()
             aboutWindow = window
         }
+        // Re-center on every open so a window the user dragged elsewhere does
+        // not reopen at that spot, matching the settings window behavior.
+        aboutWindow?.center()
         NSApp.activate(ignoringOtherApps: true)
         aboutWindow?.makeKeyAndOrderFront(nil)
     }
