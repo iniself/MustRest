@@ -57,9 +57,9 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
 
                         Form {
-                            Toggle(draftIsOverlayBlocking ? "遮罩全屏" : "允许退出", isOn: Binding(
-                                get: { draftIsOverlayBlocking },
-                                set: { draftIsOverlayBlocking = $0 }
+                            Toggle("允许退出", isOn: Binding(
+                                get: { !draftIsOverlayBlocking },
+                                set: { draftIsOverlayBlocking = !$0 }
                             ))
 
                             // When ON the app registers itself as a login item

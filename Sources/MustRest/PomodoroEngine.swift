@@ -340,6 +340,39 @@ public final class PomodoroEngine: ObservableObject {
         notifyChange()
     }
 
+    /// Skips the break that is currently on screen and starts the next work
+    /// interval for the same task, so dismissing the overlay does not stop the
+    /// task's cycle. Every break that is currently showing is skipped, because
+    /// parallel breaks share one overlay and the overlay only disappears once
+    /// no break is left.
+    public func skipCurrentBreak() {
+        let breakingIds = runs.keys.filter { runs[$0]?.phase == .breaking }
+        guard !breakingIds.isEmpty else { return }
+
+        for id in breakingIds {
+            guard var run = runs[id] else { continue }
+            let task = run.task
+            run.phase = .working
+            run.endDate = clock.now().addingTimeInterval(task.workIntervalSeconds)
+            run.remainingAtPause = task.workIntervalSeconds
+            run.pausedFrom = nil
+            runs[id] = run
+        }
+
+        // Keep featuring the task whose break was on screen when possible, so
+        // the menu bar countdown continues with the same task.
+        let featuredId = breakingIds.first { $0 == currentTask?.id } ?? breakingIds.first
+        if let id = featuredId, let run = runs[id] {
+            currentTask = run.task
+            phase = .working
+            remainingSeconds = max(0, run.endDate?.timeIntervalSinceNow ?? 0)
+        }
+
+        scheduleTimer()
+        syncOverlayWarning()
+        notifyChange()
+    }
+
     /// Updates the task data of an existing run (e.g. after the user changed
     /// task durations / colors in the settings) so countdowns and breaks pick
     /// up the new values without restarting the engine.

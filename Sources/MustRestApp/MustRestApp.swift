@@ -4,6 +4,7 @@ import MustRest
 
 @main
 struct MustRestApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var engine: PomodoroEngine
     @StateObject private var store: PomodoroStore
     @StateObject private var windowManager: WindowManager

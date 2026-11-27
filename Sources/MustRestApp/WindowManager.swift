@@ -4,34 +4,116 @@ import ServiceManagement
 import MustRest
 
 class WindowManager: ObservableObject {
+    /// Weak reference used by the app delegate to refuse quitting while the
+    /// blocking overlay is on screen.
+    private(set) static weak var active: WindowManager?
+
     private var settingsWindow: NSWindow?
     /// One overlay window per display, keyed by display ID, so every screen is
     /// covered instead of only the main one.
     private var overlayWindows: [CGDirectDisplayID: NSWindow] = [:]
+    /// True while the blocking overlay is displayed. While set, quitting the
+    /// app is refused and the system is put in kiosk presentation mode.
+    private(set) var isBlockingOverlay = false
+    private weak var engine: PomodoroEngine?
     private var phaseObserver: NSObjectProtocol?
+    private var resignActiveObserver: NSObjectProtocol?
+    private var becomeActiveObserver: NSObjectProtocol?
     private var colorPanelObserver: NSObjectProtocol?
     private var colorPanelTimer: Timer?
     private var lastColorPanelVisible = false
     private var keyMonitor: Any?
+    /// Timer backing the long-press Escape escape hatch.
+    private var escapeHoldTimer: Timer?
+    /// Throttles re-activation attempts triggered by losing focus.
+    private var lastKioskReassert = Date.distantPast
 
     init() {
         // A menu bar only app must run with an accessory activation policy,
         // otherwise it shows up in the Dock and the Command + Tab switcher.
         NSApp.setActivationPolicy(.accessory)
+        WindowManager.active = self
         setupPhaseObserver()
+        setupResignActiveObserver()
+        setupBecomeActiveObserver()
         setupColorPanelObserver()
         setupKeyMonitor()
     }
 
+    /// While the blocking overlay is visible, losing focus would silently drop
+    /// the kiosk presentation options, so take the focus back. Throttled so a
+    /// system UI that keeps stealing activation cannot cause a tight loop.
+    private func setupResignActiveObserver() {
+        resignActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self, self.isBlockingOverlay else { return }
+            let now = Date()
+            guard now.timeIntervalSince(self.lastKioskReassert) >= 0.5 else { return }
+            self.lastKioskReassert = now
+            self.activateOverlayApp()
+            self.enterKioskMode()
+        }
+    }
+
+    /// Re-keys the overlay whenever the app becomes active again, so the Escape
+    /// long press keeps working after the system stole focus.
+    private func setupBecomeActiveObserver() {
+        becomeActiveObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.makeOverlayKey()
+        }
+    }
+
     private func setupKeyMonitor() {
-        // Allow the Escape key to close the settings window.
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
-                self?.closeSettings()
+        // Escape closes the settings window. While an overlay is visible and
+        // manual exit is allowed, holding Escape for a few seconds ends the
+        // break. The blocking overlay swallows Escape instead, because it must
+        // not offer any way out.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+            guard let self = self else { return event }
+            guard event.keyCode == 53 else { return event }
+            if !self.overlayWindows.isEmpty {
+                guard !self.isBlockingOverlay else { return nil }
+                if event.type == .keyDown {
+                    if !event.isARepeat {
+                        self.beginEscapeHold()
+                    }
+                } else {
+                    self.cancelEscapeHold()
+                }
                 return nil
             }
-            return event
+            if event.type == .keyDown {
+                self.closeSettings()
+            }
+            return nil
         }
+    }
+
+    /// Seconds Escape has to be held before the overlay can be dismissed.
+    private static let escapeHoldDuration: TimeInterval = 3
+
+    private func beginEscapeHold() {
+        cancelEscapeHold()
+        escapeHoldTimer = Timer.scheduledTimer(withTimeInterval: Self.escapeHoldDuration, repeats: false) { [weak self] _ in
+            self?.endOverlayByEscape()
+        }
+    }
+
+    private func cancelEscapeHold() {
+        escapeHoldTimer?.invalidate()
+        escapeHoldTimer = nil
+    }
+
+    private func endOverlayByEscape() {
+        escapeHoldTimer = nil
+        engine?.skipCurrentBreak()
     }
 
     private func setupPhaseObserver() {
@@ -100,10 +182,17 @@ class WindowManager: ObservableObject {
         if let observer = phaseObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = resignActiveObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = becomeActiveObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         if let observer = colorPanelObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         colorPanelTimer?.invalidate()
+        escapeHoldTimer?.invalidate()
         if let keyMonitor = keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }
@@ -173,8 +262,19 @@ class WindowManager: ObservableObject {
                 rootView: OverlayView(engine: engine).environmentObject(store)
             )
             window.setFrame(screen.frame, display: true)
-            window.level = overlayWindowLevel(for: screen)
+            window.level = overlayWindowLevel
             window.makeKeyAndOrderFront(nil)
+        }
+
+        self.engine = engine
+        activateOverlayApp()
+        if store.settings.isOverlayBlocking {
+            if !isBlockingOverlay {
+                isBlockingOverlay = true
+                enterKioskMode()
+            }
+        } else {
+            leaveKioskMode()
         }
     }
 
@@ -183,11 +283,62 @@ class WindowManager: ObservableObject {
             window.close()
         }
         overlayWindows.removeAll()
+        leaveKioskMode()
+    }
+
+    /// Brings the app to the front and gives an overlay window keyboard focus.
+    /// A local key monitor only receives key events while the app is active and
+    /// one of its windows is key, which the Escape long press depends on.
+    ///
+    /// On macOS 14+ activation is cooperative: `NSApp.activate()` and
+    /// `NSRunningApplication.activate` are refused for an app that was
+    /// triggered from the background, while the older
+    /// `activate(ignoringOtherApps:)` still forces it through.
+    private func activateOverlayApp() {
+        NSApp.activate()
+        if !NSApp.isActive {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        // Activation is asynchronous, so key the window once it takes effect.
+        DispatchQueue.main.async { [weak self] in
+            self?.makeOverlayKey()
+        }
+    }
+
+    /// Makes one visible overlay window the key window. Multiple displays only
+    /// need a single key window because the local monitor is app-wide.
+    private func makeOverlayKey() {
+        guard let window = overlayWindows.values.first(where: { $0.isVisible }) else { return }
+        if NSApp.keyWindow !== window {
+            window.makeKey()
+        }
+    }
+
+    /// Blocks Command + Tab, Force Quit, log out / shut down and the Dock while
+    /// the blocking overlay is visible, so the user cannot walk away from the
+    /// break with system shortcuts.
+    private func enterKioskMode() {
+        // Presentation options only take effect while this app is active, so
+        // the overlay is activated right before this is called.
+        NSApp.presentationOptions = [
+            .hideDock,
+            .hideMenuBar,
+            .disableAppleMenu,
+            .disableProcessSwitching,
+            .disableForceQuit,
+            .disableSessionTermination,
+        ]
+    }
+
+    private func leaveKioskMode() {
+        cancelEscapeHold()
+        isBlockingOverlay = false
+        NSApp.presentationOptions = []
     }
 
     /// Builds a borderless, opaque window that covers one screen.
     private func makeOverlayWindow(for screen: NSScreen) -> NSWindow {
-        let window = NSWindow(
+        let window = OverlayWindow(
             contentRect: screen.frame,
             styleMask: [.borderless],
             backing: .buffered,
@@ -202,14 +353,15 @@ class WindowManager: ObservableObject {
         // Stay on every Space and above other apps' full-screen Spaces, so
         // switching desktops or entering full screen cannot dismiss the overlay.
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
-        window.level = overlayWindowLevel(for: screen)
+        window.level = overlayWindowLevel
         return window
     }
 
-    /// A window level above the menu bar, the Dock and the screen saver so the
-    /// overlay covers all of them.
-    private func overlayWindowLevel(for screen: NSScreen) -> NSWindow.Level {
-        NSWindow.Level(rawValue: Int(screen.frame.size.height) + 2000)
+    /// Just above the screen saver level: high enough to cover the menu bar,
+    /// the Dock, notification banners and other screen-saver-level overlays,
+    /// while staying below the lock screen and accessibility UI.
+    private var overlayWindowLevel: NSWindow.Level {
+        NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
     }
 
     /// Stable identity for a display, used to reuse one overlay per screen.
@@ -238,4 +390,10 @@ class WindowManager: ObservableObject {
             _ = try? service.unregister()
         }
     }
+}
+
+/// Borderless overlay window that is allowed to become key, so it receives the
+/// keyboard events used for the long-press Escape escape hatch.
+final class OverlayWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
 }

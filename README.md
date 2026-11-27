@@ -9,7 +9,7 @@ A macOS pomodoro / break reminder app.
 ## Features
 
 1. Reminds the user to take a break.
-2. The overlay is full screen by default with background color `#B98278`. When the switch is on ("Full Screen Overlay") early exit is not allowed and the user must wait for the timer to finish; when off ("Allow Exit"), the "Exit" button in the overlay can end the current task early.
+2. The overlay is full screen by default with background color `#B98278`. With "Allow Exit" off (the default) early exit is not allowed at all and the user must wait for the timer to finish; with it on, holding Esc for 3 seconds skips the current break and starts the next work interval.
 3. The overlay reminder shows the task name by default, e.g. "Eye Rest".
 4. Default tasks:
    - Eye Rest: work 20 minutes, then 15 seconds of break.
@@ -22,6 +22,8 @@ A macOS pomodoro / break reminder app.
 7. An "Auto Launch at Boot" switch is available in Settings: when enabled, the app launches automatically at computer boot and automatically starts the tasks.
 
 8. Multiple tasks can run countdowns / breaks in parallel.
+
+9. While "Allow Exit" is off, the app also blocks Command + Q, Command + Tab, Force Quit and log out / shut down during the break, so there is no way out until the timer ends. With "Allow Exit" on, holding Esc for 3 seconds skips the current break; the task keeps running.
 
 ## Build
 
