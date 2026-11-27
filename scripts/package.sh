@@ -46,6 +46,13 @@ mkdir -p "${APP_DIR}/Contents/Resources"
 cp "${OUT_DIR}/${APP_NAME}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
 cp "${ICON}" "${APP_DIR}/Contents/Resources/"
 
+# Copy the SwiftPM resource bundle into the app so Bundle.module can find
+# images at Contents/Resources/MustRest_MustRestApp.bundle.
+RESOURCE_BUNDLE=".build/x86_64-apple-macosx/release/MustRest_MustRestApp.bundle"
+if [ -d "${RESOURCE_BUNDLE}" ]; then
+    cp -R "${RESOURCE_BUNDLE}" "${APP_DIR}/Contents/Resources/"
+fi
+
 cat > "${APP_DIR}/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

@@ -87,6 +87,13 @@ struct MustRestApp: App {
                     .labelStyle(.titleAndIcon)
             }
 
+            Button {
+                windowManager.showAbout()
+            } label: {
+                Label("关于...", systemImage: "info.circle")
+                    .labelStyle(.titleAndIcon)
+            }
+
             Divider()
 
             Button {

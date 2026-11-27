@@ -9,6 +9,7 @@ class WindowManager: ObservableObject {
     private(set) static weak var active: WindowManager?
 
     private var settingsWindow: NSWindow?
+    private var aboutWindow: NSWindow?
     /// One overlay window per display, keyed by display ID, so every screen is
     /// covered instead of only the main one.
     private var overlayWindows: [CGDirectDisplayID: NSWindow] = [:]
@@ -93,7 +94,11 @@ class WindowManager: ObservableObject {
                 return nil
             }
             if event.type == .keyDown {
-                self.closeSettings()
+                if self.aboutWindow?.isKeyWindow == true {
+                    self.aboutWindow?.close()
+                } else {
+                    self.closeSettings()
+                }
             }
             return nil
         }
@@ -408,6 +413,29 @@ class WindowManager: ObservableObject {
         NSColorPanel.shared.close()
         settingsWindow?.close()
         settingsWindow = nil
+    }
+
+    /// Shows the About window with the author's WeChat QR code. Reuses the
+    /// same window so reopening it does not stack duplicates.
+    func showAbout() {
+        if aboutWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 420, height: 620),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "关于 MustRest"
+            window.isReleasedWhenClosed = false
+            window.contentViewController = NSHostingController(rootView: AboutView())
+            // Assigning a content view controller resizes the window, so the
+            // final size has to be applied afterwards.
+            window.setContentSize(NSSize(width: 420, height: 620))
+            window.center()
+            aboutWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        aboutWindow?.makeKeyAndOrderFront(nil)
     }
 
     /// Registers / unregisters the app as a login item so macOS launches it

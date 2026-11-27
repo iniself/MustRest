@@ -18,6 +18,7 @@ let package = Package(
         .executableTarget(
             name: "MustRestApp",
             dependencies: ["MustRest"],
+            resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
