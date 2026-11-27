@@ -82,7 +82,7 @@ codesign --sign - --force "${APP_DIR}"
 
 ln -s /Applications "${STAGE}/Applications"
 
-rm -f "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}.dmg"
+rm -f "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}.dmg" "${OUT_DIR}/${BUNDLE_NAME}-${VERSION}-universal.dmg"
 rm -rf "${OUT_DIR}/${BUNDLE_NAME}.app" "${OUT_DIR}/.DS_Store"
 
 cp -R "${APP_DIR}" "${OUT_DIR}/${BUNDLE_NAME}.app"
